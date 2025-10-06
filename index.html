@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Invest_IMMO • LMP / Simplifié + data.gouv (HTML) + Villes + CP/INSEE auto</title>
+<title>Invest_IMMO • LMP / Simplifié + data.gouv (HTML) + Villes + CP/INSEE + CSV Import</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 <style>
 :root{--bg:#0f1222;--fg:#f3f5ff;--muted:#aeb3d0;--card:#171a2e;--line:#252947;--accent:#6ea8fe;--accent2:#9c6efe;--ok:#3ddc84;--bad:#ff6b6b;--warn:#f3aa2b}
@@ -35,13 +35,15 @@ input.error{border-color:var(--bad)}
 .sep{height:1px;background:var(--line);margin:16px 0}
 .hint{color:var(--muted);font-size:12px}
 .badge{display:inline-block;padding:4px 8px;border:1px solid var(--line);border-radius:999px;margin-right:6px}
+#drop_zone{border:1px dashed var(--line);border-radius:10px;padding:16px;text-align:center}
+#drop_zone.drag{background:#0d1025}
 @media(max-width:900px){.col-8,.col-6,.col-4,.col-3,.col-2,.col-1{grid-column:span 12}.kpi .item{grid-column:span 12}}
 </style>
 </head>
 <body>
 <header>
   <h1>Invest_IMMO • Mode fiscal LMP / Simplifié</h1>
-  <span class="pill">data.gouv (HTML) + Villes + CP/INSEE + PMT auto</span>
+  <span class="pill">data.gouv (HTML) + Villes + CP/INSEE + PMT auto + Import CSV</span>
   <button class="btn" id="resetBtn">Réinitialiser</button>
 </header>
 
@@ -50,7 +52,7 @@ input.error{border-color:var(--bad)}
     <button class="tab-btn active" data-tab="saisie">Saisie</button>
     <button class="tab-btn" data-tab="fiscal">Fiscalité</button>
     <button class="tab-btn" data-tab="result">Résultats</button>
-    <button class="tab-btn" data-tab="sources">Sources (HTML / CSV / JSON)</button>
+    <button class="tab-btn" data-tab="sources">Sources (URL / CSV)</button>
   </nav>
 
   <!-- Saisie -->
@@ -78,7 +80,7 @@ input.error{border-color:var(--bad)}
 
       <div class="col-3"><label>Adresse</label><input id="address" placeholder="3 rue Exemple"></div>
 
-      <!-- NOUVEAU : surfaces -->
+      <!-- Surfaces -->
       <div class="col-2"><label>Surface habitable (m²)</label><input id="surf_hab" type="number"></div>
       <div class="col-2"><label>Surface terrain (m²)</label><input id="surf_land" type="number"></div>
 
@@ -95,7 +97,6 @@ input.error{border-color:var(--bad)}
       <div class="col-2"><label>Loyer/chambre (€)</label><input id="rent_per_room" type="number"></div>
       <div class="col-2"><label>Loyer total mensuel (€)</label><input id="rent_total" type="number" placeholder="Auto: nb × loyer/ch."></div>
 
-      <!-- NOUVEAU : loyer autorisé -->
       <div class="col-2"><label>Loyer total mensuel autorisé (€)</label><input id="rent_allowed" type="number"></div>
 
       <!-- Auto calculés via source -->
@@ -116,7 +117,7 @@ input.error{border-color:var(--bad)}
       <div class="col-4"><label>Taux SASU (% annuel)</label><input id="sasu_rate" type="number" step="0.01"></div>
       <div class="col-4"><label>Durée SASU (années)</label><input id="sasu_years" type="number"></div>
 
-      <!-- NOUVEAU : mensualités auto -->
+      <!-- Mensualités auto -->
       <div class="col-6"><label>Mensualité banque (calcul auto)</label><input id="bank_monthly" type="number" disabled></div>
       <div class="col-6"><label>Mensualité SASU (calcul auto)</label><input id="sasu_monthly" type="number" disabled></div>
     </div>
@@ -171,16 +172,31 @@ input.error{border-color:var(--bad)}
   <!-- Sources -->
   <section class="card" data-panel="sources" hidden>
     <h2>Sources – Lien HTML direct (data.gouv) ou CSV/JSON</h2>
+
     <div class="grid">
       <div class="col-12">
         <label>URL de la source</label>
         <input id="api_url" value="https://www.data.gouv.fr/api/1/datasets/r/df7a9765-2ac9-45be-905f-d2bc5dc9fc35">
       </div>
     </div>
-    <div style="margin-top:10px">
-      <button class="btn accent" id="btnLoadSource">Charger & Fusionner</button>
+
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
+      <button class="btn accent" id="btnLoadSource">Charger & Fusionner (URL)</button>
       <button class="btn" id="btnClearSources">Vider le cache des sources</button>
     </div>
+
+    <div class="sep"></div>
+    <h3>Importer des CSV (compléter la base)</h3>
+    <div class="grid">
+      <div class="col-12">
+        <label>Fichiers CSV (plusieurs autorisés)</label>
+        <input id="csv_files" type="file" accept=".csv,text/csv" multiple>
+      </div>
+      <div class="col-12">
+        <div id="drop_zone">Glisser-déposer ici vos fichiers CSV</div>
+      </div>
+    </div>
+
     <div class="sep"></div>
     <h3>Journal (sources)</h3>
     <textarea id="sources_log" rows="10" class="mono" style="width:100%" readonly></textarea>
@@ -199,6 +215,7 @@ document.addEventListener("DOMContentLoaded", function(){
   function saveState(){ const inputs=[].slice.call(document.querySelectorAll("input,select")).reduce((a,el)=>{a[el.id]=el.value;return a;},{}); localStorage.setItem("immo_state_full", JSON.stringify(inputs)); }
   function loadState(){ const raw=localStorage.getItem("immo_state_full"); if(!raw) return; const d=JSON.parse(raw); Object.keys(d).forEach(k=>{ const el=document.getElementById(k); if(el) el.value=d[k]; }); }
   function append(id,msg){ const el=$(id); if(!el) return; el.value+=(el.value?"\n":"")+msg; el.scrollTop=el.scrollHeight; }
+  function logSrc(msg){ append("#sources_log", msg); }
 
   /* ===== Onglets ===== */
   $("#tabs").addEventListener("click", e=>{
@@ -207,7 +224,7 @@ document.addEventListener("DOMContentLoaded", function(){
     $$("[data-panel]").forEach(p=> p.hidden = (p.dataset.panel!==b.dataset.tab));
   });
 
-  /* ===== Villes (exemple réduit ; branchement CP/INSEE identique à la version précédente) ===== */
+  /* ===== Villes (extrait) ===== */
   const CITY_LIST = [
     {dep:"Val-de-Marne",dep_code:"94",city:"Joinville-le-Pont",transport:"RER A",mins:10,quality:9},
     {dep:"Yvelines",dep_code:"78",city:"Versailles",transport:"RER C",mins:20,quality:9},
@@ -222,7 +239,7 @@ document.addEventListener("DOMContentLoaded", function(){
   }
   function qualityToOcc(q){ if(q>=9) return ["1.00","1.00"]; if(q>=8) return ["0.90","1.00"]; if(q>=7) return ["0.80","0.90"]; if(q>=6) return ["0.70","0.80"]; return ["0.50","0.70"]; }
 
-  /* ===== API GEO.GOUV (CP + INSEE) — simplifiée ici (mêmes fonctions que précédemment) ===== */
+  /* ===== API GEO.GOUV (CP + INSEE) ===== */
   async function fetchCommune(city, depCode){
     const url = `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(city)}${depCode?`&codeDepartement=${encodeURIComponent(depCode)}`:""}&fields=codesPostaux,code,nom&boost=population&limit=10`;
     const res = await fetch(url, {mode:"cors"}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.json();
@@ -235,7 +252,7 @@ document.addEventListener("DOMContentLoaded", function(){
       const best = data[0]; const cpList = best.codesPostaux || [];
       fillCpList(cpList); if(cpList.length && (!cpInput.value || !cpList.includes(cpInput.value))) cpInput.value = cpList[0];
       insee.value = best.code || "";
-    }catch(e){ /* fallback neutre */ if(!insee.value) insee.value=""; }
+    }catch(e){ if(!insee.value) insee.value=""; }
   }
   async function setInseeFromCityAndCp(city, depCode, cp){
     try{
@@ -267,8 +284,8 @@ document.addEventListener("DOMContentLoaded", function(){
     }, 350);
   });
 
-  /* ===== Référentiel ===== */
-  let REF_ROWS = [];
+  /* ===== Référentiel / Heuristiques ===== */
+  window.REF_ROWS = [];
   const CP_KEYS = ["cp","code postal","code_postal","postal code","code insee","insee","codgeo","codgeo commune"];
   const CITY_KEYS = ["ville","commune","city","nom_commune","nom","libelle","libellé"];
   const COL_HINTS = {
@@ -299,12 +316,10 @@ document.addEventListener("DOMContentLoaded", function(){
     const age = (y>0) ? Math.max(0, new Date().getFullYear()-y) : 40;
     const d = String(dpe||"D").toUpperCase();
     const bucket = (age<=10)?"0_10":(age<=30)?"11_30":(age<=60)?"31_60":"61p";
-    const T = {
-      "A":{"0_10":3,"11_30":4,"31_60":5,"61p":6},"B":{"0_10":3.5,"11_30":5,"31_60":6,"61p":7.5},
-      "C":{"0_10":4,"11_30":6,"31_60":8,"61p":10},"D":{"0_10":5,"11_30":7.5,"31_60":10,"61p":12},
-      "E":{"0_10":6,"11_30":9,"31_60":12,"61p":15},"F":{"0_10":7,"11_30":11,"31_60":14,"61p":18},
-      "G":{"0_10":8,"11_30":13,"31_60":17,"61p":22}
-    };
+    const T = {"A":{"0_10":3,"11_30":4,"31_60":5,"61p":6},"B":{"0_10":3.5,"11_30":5,"31_60":6,"61p":7.5},
+               "C":{"0_10":4,"11_30":6,"31_60":8,"61p":10},"D":{"0_10":5,"11_30":7.5,"31_60":10,"61p":12},
+               "E":{"0_10":6,"11_30":9,"31_60":12,"61p":15},"F":{"0_10":7,"11_30":11,"31_60":14,"61p":18},
+               "G":{"0_10":8,"11_30":13,"31_60":17,"61p":22}};
     return (T[d]||T["D"])[bucket];
   }
 
@@ -331,7 +346,7 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#mgmt_pct").value = (gest!=null? gest.toFixed(2) : "7.00");
     $("#capex_pct").value = (capex!=null? capex.toFixed(2) : capexPctFromDPEandAge(dpe,year).toFixed(2));
 
-    // Loyer autorisé auto si un plafond €/m2 est dispo
+    // Loyer autorisé auto si un plafond €/m² est dispo
     const rentAllowedEl=$("#rent_allowed");
     if(plaf_m2!=null && surfHab>0 && !getNum("#rent_allowed")){
       rentAllowedEl.value = Math.round(plaf_m2*surfHab);
@@ -441,7 +456,6 @@ document.addEventListener("DOMContentLoaded", function(){
     const bankM=pmt(bankRate/12, Math.max(1,bankYears*12), bankAmount);
     const sasuM=pmt(sasuRate/12, Math.max(1,sasuYears*12), sasuAmount);
     const mensualiteBanque = -bankM, mensualiteSASU = -sasuM;
-    // MAJ champs affichage mensualités
     $("#bank_monthly").value = Math.round(mensualiteBanque);
     $("#sasu_monthly").value = Math.round(mensualiteSASU);
 
@@ -522,7 +536,7 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#debug").value=JSON.stringify(out.dbg,null,2);
   }
 
-  /* ===== Loader source data.gouv ===== */
+  /* ===== Loader source data.gouv (URL) ===== */
   function looksLikeJSON(t){ t=String(t||"").trim(); return t[0]==="{"||t[0]==="["; }
   function isHTML(t){ const s=String(t||"").trim().slice(0,200).toLowerCase(); return s.includes("<!doctype html")||s.includes("<html"); }
   function parseHTMLTablesToRows(htmlText){
@@ -545,28 +559,90 @@ document.addEventListener("DOMContentLoaded", function(){
   $("#btnLoadSource").addEventListener("click", async ()=>{
     const url=getStr("#api_url"); if(!url){ alert("URL requise."); return; }
     try{
-      append("#sources_log","Chargement: "+url);
+      logSrc("Chargement: "+url);
       const text=await fetchAsText(url); let rows=[];
-      if(isHTML(text)){ rows=parseHTMLTablesToRows(text); append("#sources_log",`→ HTML détecté: ${rows.length} lignes`); }
-      else if(looksLikeJSON(text)){ const json=JSON.parse(text); rows=Array.isArray(json)?json:(Array.isArray(json.items)?json.items:[]); append("#sources_log",`→ JSON: ${rows.length}`); }
-      else { const parsed=Papa.parse(text,{header:true,dynamicTyping:true,skipEmptyLines:true}); rows=parsed.data; append("#sources_log",`→ CSV: ${rows.length}`); }
-      mergeIntoReferential(rows); append("#sources_log",`Fusion totale: ${REF_ROWS.length} lignes`);
+      if(isHTML(text)){ rows=parseHTMLTablesToRows(text); logSrc(`→ HTML détecté: ${rows.length} lignes`); }
+      else if(looksLikeJSON(text)){ const json=JSON.parse(text); rows=Array.isArray(json)?json:(Array.isArray(json.items)?json.items:[]); logSrc(`→ JSON: ${rows.length}`); }
+      else { const parsed=Papa.parse(text,{header:true,dynamicTyping:true,skipEmptyLines:true}); rows=parsed.data; logSrc(`→ CSV: ${rows.length}`); }
+      mergeIntoReferential(rows); logSrc(`Fusion totale: ${REF_ROWS.length} lignes`);
       autoFromReferential(); renderAndDebug();
-    }catch(err){ append("#sources_log","❌ "+(err&&err.message?err.message:err)); }
+    }catch(err){ logSrc("❌ "+(err && err.message ? err.message : err)); }
   });
-  $("#btnClearSources").addEventListener("click",()=>{ localStorage.removeItem("immo_state_full"); REF_ROWS=[]; append("#sources_log","Cache vidé et référentiel réinitialisé."); });
+  $("#btnClearSources").addEventListener("click",()=>{ localStorage.removeItem("immo_state_full"); REF_ROWS=[]; logSrc("Cache vidé et référentiel réinitialisé."); });
 
-  // Préchargement
+  // Préchargement (URL par défaut)
   (async function preload(){
     const url="https://www.data.gouv.fr/api/1/datasets/r/df7a9765-2ac9-45be-905f-d2bc5dc9fc35";
     try{
       const t=await fetchAsText(url); let rows=[];
-      if(isHTML(t)){ rows=parseHTMLTablesToRows(t); append("#sources_log",`Préchargé (HTML): ${rows.length} lignes`); }
-      else if(looksLikeJSON(t)){ const j=JSON.parse(t); rows=Array.isArray(j)?j:(Array.isArray(j.items)?j.items:[]); append("#sources_log",`Préchargé (JSON): ${rows.length}`); }
-      else { const p=Papa.parse(t,{header:true,dynamicTyping:true,skipEmptyLines:true}); rows=p.data; append("#sources_log",`Préchargé (CSV): ${p.data.length} lignes`); }
+      if(isHTML(t)){ rows=parseHTMLTablesToRows(t); logSrc(`Préchargé (HTML): ${rows.length} lignes`); }
+      else if(looksLikeJSON(t)){ const j=JSON.parse(t); rows=Array.isArray(j)?j:(Array.isArray(j.items)?j.items:[]); logSrc(`Préchargé (JSON): ${rows.length}`); }
+      else { const p=Papa.parse(t,{header:true,dynamicTyping:true,skipEmptyLines:true}); rows=p.data; logSrc(`Préchargé (CSV): ${p.data.length} lignes`); }
       mergeIntoReferential(rows);
-    }catch(e){ append("#sources_log","Préchargement KO: "+e.message); }
+    }catch(e){ logSrc("Préchargement KO: "+e.message); }
   })();
+
+  /* ===== Import CSV (fichiers) ===== */
+  function parseCsvFileBrowser(file){
+    return new Promise((resolve,reject)=>{
+      Papa.parse(file, {
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: (res)=> resolve(res.data || []),
+        error: (err)=> reject(err)
+      });
+    });
+  }
+  async function handleCsvFiles(files){
+    if(!files || !files.length){ logSrc("Aucun fichier sélectionné."); return; }
+    let totalAdded = 0, totalRows = 0;
+    for(const f of files){
+      try{
+        logSrc(`Import CSV: ${f.name} …`);
+        const rows = await parseCsvFileBrowser(f);
+        totalRows += rows.length;
+        mergeIntoReferential(rows);
+        totalAdded += rows.length;
+        logSrc(`→ ${f.name}: ${rows.length} lignes fusionnées. Total REF: ${REF_ROWS.length}`);
+      }catch(e){
+        logSrc(`❌ ${f.name}: ${e && e.message ? e.message : e}`);
+      }
+    }
+    if(totalAdded){
+      try{
+        autoFromReferential();
+        const out = computeResults();
+        renderKPIs(out.res);
+        const dbg=$("#debug"); if(dbg) dbg.value = JSON.stringify(out.dbg,null,2);
+      }catch(e){ logSrc("⚠️ Recalcul après import: "+e.message); }
+      logSrc(`✅ Import terminé: ${files.length} fichier(s), ${totalRows} lignes, ${totalAdded} ajoutées.`);
+    } else {
+      logSrc(`Fin import: aucune ligne ajoutée.`);
+    }
+  }
+
+  const fileInput = $("#csv_files");
+  const dropZone  = $("#drop_zone");
+  if(fileInput){
+    fileInput.addEventListener("change", (e)=>{
+      const files = e.target.files;
+      handleCsvFiles(files);
+      e.target.value = "";
+    });
+  }
+  if(dropZone){
+    ["dragenter","dragover"].forEach(evt=>{
+      dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropZone.classList.add("drag"); });
+    });
+    ["dragleave","drop"].forEach(evt=>{
+      dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropZone.classList.remove("drag"); });
+    });
+    dropZone.addEventListener("drop", (e)=>{
+      const files = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files : [];
+      handleCsvFiles(files);
+    });
+  }
 
   /* ===== Actions ===== */
   $("#city").addEventListener("change", onCityChange);
@@ -585,7 +661,7 @@ document.addEventListener("DOMContentLoaded", function(){
   loadState();
   if($("#city").value) onCityChange();
   const dbg=$("#debug");
-  if(dbg) dbg.value="Nouveaux champs: Surface habitable / Surface terrain / Prix par m² (lié au Prix) / Loyer mensuel autorisé. Les mensualités Banque & SASU s’affichent en auto après calcul.";
+  if(dbg) dbg.value="Nouveaux champs: Surface habitable / Surface terrain / Prix par m² (lié au Prix) / Loyer mensuel autorisé. Import CSV multi-fichiers dispo (Sources). Les mensualités Banque & SASU s’affichent en auto après calcul.";
 });
 </script>
 </body>
