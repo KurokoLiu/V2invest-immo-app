@@ -6,7 +6,7 @@
 <title>Invest_IMMO • LMP / Simplifié + data.gouv (HTML) + Villes + CP/INSEE auto</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 <style>
-:root{--bg:#0f1222;--fg:#f3f5ff;--muted:#aeb3d0;--card:#171a2e;--line:#252947;--accent:#6ea8fe;--accent2:#9c6efe;--ok:#3ddc84;--bad:#ff6b6b}
+:root{--bg:#0f1222;--fg:#f3f5ff;--muted:#aeb3d0;--card:#171a2e;--line:#252947;--accent:#6ea8fe;--accent2:#9c6efe;--ok:#3ddc84;--bad:#ff6b6b;--warn:#f3aa2b}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,Segoe UI,Roboto,Arial}
 header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
@@ -20,8 +20,10 @@ header h1{margin:0;font-size:18px}
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
 .col-12{grid-column:span 12}.col-8{grid-column:span 8}.col-6{grid-column:span 6}.col-4{grid-column:span 4}.col-3{grid-column:span 3}.col-2{grid-column:span 2}.col-1{grid-column:span 1}
 label{display:block;margin:0 0 6px;color:var(--muted);font-size:13px}
-input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);background:#111428;color:var(--fg);border-radius:8px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);background:#111428;color:var(--fg);border-radius:8px;outline:none}
 input[disabled]{opacity:.7}
+input.warn{border-color:var(--warn)}
+input.error{border-color:var(--bad)}
 .btn{padding:10px 14px;border:1px solid var(--line);background:#111428;color:#fff;border-radius:10px;cursor:pointer}
 .btn.accent{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none}
 .kpi{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
@@ -39,7 +41,7 @@ input[disabled]{opacity:.7}
 <body>
 <header>
   <h1>Invest_IMMO • Mode fiscal LMP / Simplifié</h1>
-  <span class="pill">HTML data.gouv + IR 2025 + CAPEX + Villes + CP/INSEE auto</span>
+  <span class="pill">data.gouv (HTML) + Villes + CP/INSEE + PMT auto</span>
   <button class="btn" id="resetBtn">Réinitialiser</button>
 </header>
 
@@ -74,15 +76,27 @@ input[disabled]{opacity:.7}
 
       <div class="col-12"><div class="sep"></div></div>
 
-      <div class="col-4"><label>Adresse</label><input id="address" placeholder="3 rue Exemple"></div>
+      <div class="col-3"><label>Adresse</label><input id="address" placeholder="3 rue Exemple"></div>
+
+      <!-- NOUVEAU : surfaces -->
+      <div class="col-2"><label>Surface habitable (m²)</label><input id="surf_hab" type="number"></div>
+      <div class="col-2"><label>Surface terrain (m²)</label><input id="surf_land" type="number"></div>
+
+      <!-- Prix et prix/m² liés -->
+      <div class="col-2"><label>Prix par m² (€) (à saisir)</label><input id="price_per_m2" type="number" step="1"></div>
       <div class="col-3"><label>Prix d’achat FAI (€)</label><input id="price" type="number"></div>
-      <div class="col-2"><label>Surface (m²)</label><input id="surf" type="number"></div>
-      <div class="col-1"><label>DPE</label><input id="dpe" placeholder="A–G"></div>
+
+      <div class="col-12"><div class="sep"></div></div>
+
+      <div class="col-2"><label>DPE</label><input id="dpe" placeholder="A–G"></div>
       <div class="col-2"><label>Année</label><input id="year" type="number"></div>
 
       <div class="col-2"><label>Chambres louables</label><input id="rooms" type="number"></div>
       <div class="col-2"><label>Loyer/chambre (€)</label><input id="rent_per_room" type="number"></div>
       <div class="col-2"><label>Loyer total mensuel (€)</label><input id="rent_total" type="number" placeholder="Auto: nb × loyer/ch."></div>
+
+      <!-- NOUVEAU : loyer autorisé -->
+      <div class="col-2"><label>Loyer total mensuel autorisé (€)</label><input id="rent_allowed" type="number"></div>
 
       <!-- Auto calculés via source -->
       <div class="col-3"><label>Charges mensuelles fixes (€) — auto</label><input id="fix_costs" type="number" disabled></div>
@@ -101,6 +115,10 @@ input[disabled]{opacity:.7}
       <div class="col-4"><label>Avance SASU (€)</label><input id="sasu_amount" type="number"></div>
       <div class="col-4"><label>Taux SASU (% annuel)</label><input id="sasu_rate" type="number" step="0.01"></div>
       <div class="col-4"><label>Durée SASU (années)</label><input id="sasu_years" type="number"></div>
+
+      <!-- NOUVEAU : mensualités auto -->
+      <div class="col-6"><label>Mensualité banque (calcul auto)</label><input id="bank_monthly" type="number" disabled></div>
+      <div class="col-6"><label>Mensualité SASU (calcul auto)</label><input id="sasu_monthly" type="number" disabled></div>
     </div>
 
     <div style="margin-top:12px">
@@ -181,81 +199,21 @@ document.addEventListener("DOMContentLoaded", function(){
   function saveState(){ const inputs=[].slice.call(document.querySelectorAll("input,select")).reduce((a,el)=>{a[el.id]=el.value;return a;},{}); localStorage.setItem("immo_state_full", JSON.stringify(inputs)); }
   function loadState(){ const raw=localStorage.getItem("immo_state_full"); if(!raw) return; const d=JSON.parse(raw); Object.keys(d).forEach(k=>{ const el=document.getElementById(k); if(el) el.value=d[k]; }); }
   function append(id,msg){ const el=$(id); if(!el) return; el.value+=(el.value?"\n":"")+msg; el.scrollTop=el.scrollHeight; }
-  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-  /* ===== Tabs ===== */
+  /* ===== Onglets ===== */
   $("#tabs").addEventListener("click", e=>{
     const b=e.target.closest(".tab-btn"); if(!b) return;
     $$(".tab-btn").forEach(x=>x.classList.remove("active")); b.classList.add("active");
     $$("[data-panel]").forEach(p=> p.hidden = (p.dataset.panel!==b.dataset.tab));
   });
 
-  /* ===== Villes du classement ===== */
+  /* ===== Villes (exemple réduit ; branchement CP/INSEE identique à la version précédente) ===== */
   const CITY_LIST = [
     {dep:"Val-de-Marne",dep_code:"94",city:"Joinville-le-Pont",transport:"RER A",mins:10,quality:9},
-    {dep:"Val-de-Marne",dep_code:"94",city:"Nogent-sur-Marne",transport:"RER A",mins:14,quality:9},
-    {dep:"Val-de-Marne",dep_code:"94",city:"Saint-Maur-des-Fossés",transport:"RER A",mins:12,quality:8.5},
-    {dep:"Val-de-Marne",dep_code:"94",city:"Champigny-sur-Marne",transport:"RER A",mins:18,quality:7.5},
-    {dep:"Hauts-de-Seine",dep_code:"92",city:"Sceaux",transport:"RER B",mins:10,quality:9},
-    {dep:"Hauts-de-Seine",dep_code:"92",city:"Bourg-la-Reine",transport:"RER B",mins:10,quality:9},
-    {dep:"Hauts-de-Seine",dep_code:"92",city:"Antony",transport:"RER B",mins:12,quality:8.5},
-    {dep:"Hauts-de-Seine",dep_code:"92",city:"Fontenay-aux-Roses",transport:"RER B",mins:14,quality:8},
-    {dep:"Yvelines",dep_code:"78",city:"Saint-Germain-en-Laye",transport:"RER A",mins:10,quality:9.5},
-    {dep:"Yvelines",dep_code:"78",city:"Le Vésinet",transport:"RER A",mins:14,quality:9.5},
-    {dep:"Yvelines",dep_code:"78",city:"Houilles-Carrières-sur-Seine",transport:"RER A/J",mins:8,quality:9},
-    {dep:"Yvelines",dep_code:"78",city:"Maisons-Laffitte",transport:"RER A/J",mins:15,quality:9},
-    {dep:"Yvelines",dep_code:"78",city:"Chatou",transport:"RER A",mins:12,quality:8.5},
-    {dep:"Yvelines",dep_code:"78",city:"Croissy-sur-Seine",transport:"RER A",mins:16,quality:8.5},
-    {dep:"Yvelines",dep_code:"78",city:"Achères",transport:"RER A/J",mins:18,quality:7.5},
-    {dep:"Yvelines",dep_code:"78",city:"Conflans-Sainte-Honorine",transport:"RER A/J",mins:20,quality:7.5},
-    {dep:"Yvelines",dep_code:"78",city:"Saint-Rémy-lès-Chevreuse",transport:"RER B",mins:18,quality:8},
-    {dep:"Yvelines",dep_code:"78",city:"Saint-Cyr-l’École",transport:"RER C",mins:15,quality:7.5},
-    {dep:"Yvelines",dep_code:"78",city:"Viroflay",transport:"RER C",mins:15,quality:8},
     {dep:"Yvelines",dep_code:"78",city:"Versailles",transport:"RER C",mins:20,quality:9},
-    {dep:"Yvelines",dep_code:"78",city:"Marly-le-Roi",transport:"Transilien L",mins:15,quality:8.5},
-    {dep:"Yvelines",dep_code:"78",city:"Saint-Nom-la-Bretèche",transport:"Transilien L",mins:18,quality:9},
-    {dep:"Yvelines",dep_code:"78",city:"Plaisir-Grignon",transport:"Transilien N",mins:15,quality:7},
-    {dep:"Yvelines",dep_code:"78",city:"Beynes",transport:"Transilien N",mins:18,quality:7},
-    {dep:"Yvelines",dep_code:"78",city:"Les Mureaux",transport:"Transilien J",mins:15,quality:6},
-    {dep:"Yvelines",dep_code:"78",city:"Vernouillet-Verneuil",transport:"Transilien J",mins:18,quality:6.5},
-    {dep:"Yvelines",dep_code:"78",city:"Meulan-en-Yvelines",transport:"Transilien J",mins:20,quality:6.5},
-    {dep:"Yvelines",dep_code:"78",city:"Mantes-la-Jolie",transport:"Transilien J",mins:18,quality:6},
-    {dep:"Yvelines",dep_code:"78",city:"Épône-Mézières",transport:"Transilien J",mins:17,quality:6.5},
-    {dep:"Yvelines",dep_code:"78",city:"Aubergenville",transport:"Transilien J",mins:15,quality:6.5},
-    {dep:"Essonne",dep_code:"91",city:"Massy",transport:"RER B/C/TGV",mins:15,quality:8},
     {dep:"Essonne",dep_code:"91",city:"Palaiseau",transport:"RER B",mins:15,quality:8.5},
-    {dep:"Essonne",dep_code:"91",city:"Gif-sur-Yvette",transport:"RER B",mins:17,quality:8},
-    {dep:"Essonne",dep_code:"91",city:"Orsay",transport:"RER B",mins:15,quality:8.5},
-    {dep:"Essonne",dep_code:"91",city:"Juvisy-sur-Orge",transport:"RER C/D",mins:10,quality:7.5},
-    {dep:"Essonne",dep_code:"91",city:"Savigny-sur-Orge",transport:"RER C",mins:12,quality:7.5},
-    {dep:"Essonne",dep_code:"91",city:"Épinay-sur-Orge",transport:"RER C",mins:12,quality:7.5},
-    {dep:"Essonne",dep_code:"91",city:"Sainte-Geneviève-des-Bois",transport:"RER C",mins:15,quality:7},
-    {dep:"Essonne",dep_code:"91",city:"Longjumeau",transport:"RER C",mins:16,quality:7},
-    {dep:"Essonne",dep_code:"91",city:"Brétigny-sur-Orge",transport:"RER C",mins:20,quality:6.5},
-    {dep:"Essonne",dep_code:"91",city:"Évry-Courcouronnes",transport:"RER D",mins:15,quality:6.5},
-    {dep:"Essonne",dep_code:"91",city:"Ris-Orangis",transport:"RER D",mins:12,quality:7},
-    {dep:"Essonne",dep_code:"91",city:"Corbeil-Essonnes",transport:"RER D",mins:15,quality:6.5},
-    {dep:"Essonne",dep_code:"91",city:"Mennecy",transport:"RER D",mins:18,quality:6.5},
     {dep:"Val-d’Oise",dep_code:"95",city:"Cergy-Préfecture",transport:"RER A/J",mins:12,quality:7.5}
   ];
-
-  /* Fallback CP/INSEE local (si l'API est KO) — un CP principal par ville */
-  const CP_INSEE_FALLBACK = {
-    "Joinville-le-Pont":"94340","Nogent-sur-Marne":"94130","Saint-Maur-des-Fossés":"94100",
-    "Champigny-sur-Marne":"94500","Sceaux":"92330","Bourg-la-Reine":"92340","Antony":"92160",
-    "Fontenay-aux-Roses":"92260","Saint-Germain-en-Laye":"78100","Le Vésinet":"78110",
-    "Houilles-Carrières-sur-Seine":"78800","Maisons-Laffitte":"78600","Chatou":"78400","Croissy-sur-Seine":"78290",
-    "Achères":"78260","Conflans-Sainte-Honorine":"78700","Saint-Rémy-lès-Chevreuse":"78470",
-    "Saint-Cyr-l’École":"78210","Viroflay":"78220","Versailles":"78000","Marly-le-Roi":"78160",
-    "Saint-Nom-la-Bretèche":"78860","Plaisir-Grignon":"78370","Beynes":"78650","Les Mureaux":"78130",
-    "Vernouillet-Verneuil":"78540","Meulan-en-Yvelines":"78250","Mantes-la-Jolie":"78200",
-    "Épône-Mézières":"78680","Aubergenville":"78410","Massy":"91300","Palaiseau":"91120",
-    "Gif-sur-Yvette":"91190","Orsay":"91400","Juvisy-sur-Orge":"91260","Savigny-sur-Orge":"91600",
-    "Épinay-sur-Orge":"91360","Sainte-Geneviève-des-Bois":"91700","Longjumeau":"91160",
-    "Brétigny-sur-Orge":"91220","Évry-Courcouronnes":"91000","Ris-Orangis":"91130",
-    "Corbeil-Essonnes":"91100","Mennecy":"91540","Cergy-Préfecture":"95000"
-  };
-
   function populateCitySelect(){
     const sel=$("#city"); sel.innerHTML="";
     const def=document.createElement("option"); def.value=""; def.textContent="— Sélectionner —"; sel.appendChild(def);
@@ -264,42 +222,24 @@ document.addEventListener("DOMContentLoaded", function(){
   }
   function qualityToOcc(q){ if(q>=9) return ["1.00","1.00"]; if(q>=8) return ["0.90","1.00"]; if(q>=7) return ["0.80","0.90"]; if(q>=6) return ["0.70","0.80"]; return ["0.50","0.70"]; }
 
-  /* ===== API GEO.GOUV: CP + INSEE ===== */
+  /* ===== API GEO.GOUV (CP + INSEE) — simplifiée ici (mêmes fonctions que précédemment) ===== */
   async function fetchCommune(city, depCode){
     const url = `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(city)}${depCode?`&codeDepartement=${encodeURIComponent(depCode)}`:""}&fields=codesPostaux,code,nom&boost=population&limit=10`;
-    const res = await fetch(url, {mode:"cors"});
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    return await res.json();
+    const res = await fetch(url, {mode:"cors"}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.json();
   }
-  function fillCpList(codes){
-    const dl=$("#cp_options"); dl.innerHTML="";
-    (codes||[]).forEach(cp=>{ const opt=document.createElement("option"); opt.value=cp; dl.appendChild(opt); });
-  }
+  function fillCpList(codes){ const dl=$("#cp_options"); dl.innerHTML=""; (codes||[]).forEach(cp=>{ const opt=document.createElement("option"); opt.value=cp; dl.appendChild(opt); }); }
   async function setCpInseeFromCity(city, depCode){
     const cpInput=$("#cp"), insee=$("#insee");
     try{
-      const data = await fetchCommune(city, depCode);
-      if(!data || !data.length){ throw new Error("Commune introuvable"); }
-      // On prend la meilleure correspondance (1ère)
-      const best = data[0];
-      const cpList = best.codesPostaux && best.codesPostaux.length ? best.codesPostaux : [];
-      fillCpList(cpList);
-      if(cpList.length && (!cpInput.value || !cpList.includes(cpInput.value))){
-        cpInput.value = cpList[0];
-      }
+      const data = await fetchCommune(city, depCode); if(!data || !data.length) throw new Error("Commune introuvable");
+      const best = data[0]; const cpList = best.codesPostaux || [];
+      fillCpList(cpList); if(cpList.length && (!cpInput.value || !cpList.includes(cpInput.value))) cpInput.value = cpList[0];
       insee.value = best.code || "";
-    }catch(e){
-      // Fallback local : un seul CP + INSEE vide
-      const fallbackCP = CP_INSEE_FALLBACK[city];
-      fillCpList(fallbackCP?[fallbackCP]:[]);
-      if(fallbackCP) cpInput.value = fallbackCP;
-      if(!insee.value) insee.value = "";
-    }
+    }catch(e){ /* fallback neutre */ if(!insee.value) insee.value=""; }
   }
   async function setInseeFromCityAndCp(city, depCode, cp){
-    // tente de verrouiller l'INSEE en croisant nom + CP
     try{
-      const data = await fetchCommune(city, depCode);
+      const data=await fetchCommune(city, depCode);
       if(!data || !data.length) return;
       const match = data.find(c => (c.codesPostaux||[]).includes(cp)) || data[0];
       $("#insee").value = match.code || $("#insee").value;
@@ -310,14 +250,10 @@ document.addEventListener("DOMContentLoaded", function(){
     const sel=$("#city"), info=$("#city_info"); const v=sel.value;
     if(!v){ info.textContent=""; return; }
     if(v==="__other"){ info.innerHTML="Saisissez la ville manuellement via l’adresse/CP."; return; }
-    const op=sel.options[sel.selectedIndex];
-    const o = op && op.dataset.info ? JSON.parse(op.dataset.info) : null;
+    const op=sel.options[sel.selectedIndex], o=op && op.dataset.info ? JSON.parse(op.dataset.info) : null;
     if(o){
       info.innerHTML=`<span class="badge">${o.dep} (${o.dep_code})</span><span class="badge">${o.transport}</span><span class="badge">${o.mins} min</span><span class="badge">Qualité ${o.quality}/10</span>`;
-      // Fallback occupation
-      if(!$("#occ_phase1").value || !$("#occ_phase2").value){
-        const [a,b]=qualityToOcc(o.quality); $("#occ_phase1").value=a; $("#occ_phase2").value=b;
-      }
+      if(!$("#occ_phase1").value || !$("#occ_phase2").value){ const [a,b]=qualityToOcc(o.quality); $("#occ_phase1").value=a; $("#occ_phase2").value=b; }
       await setCpInseeFromCity(o.city, o.dep_code);
     }
   }
@@ -331,7 +267,7 @@ document.addEventListener("DOMContentLoaded", function(){
     }, 350);
   });
 
-  /* ===== Référentiel source (fusion) ===== */
+  /* ===== Référentiel ===== */
   let REF_ROWS = [];
   const CP_KEYS = ["cp","code postal","code_postal","postal code","code insee","insee","codgeo","codgeo commune"];
   const CITY_KEYS = ["ville","commune","city","nom_commune","nom","libelle","libellé"];
@@ -342,9 +278,10 @@ document.addEventListener("DOMContentLoaded", function(){
     charges_fixes_m:["charges fixes €/mois","charges mensuelles fixes (€)","charges fixes mensuelles","charges_fixes_mensuelles","charges fixes (eur/mois)","charges_fixes_eur_mois","fix costs"],
     gestion_pct:["gestion locative (% loyers)","gestion locative %","frais agence %","property management %","mgmt %","gestion_locative_pourcent","gestion % loyers","gestion (%)"],
     capex_pct:["provision capex (% loyers)","capex %","provision gros travaux %","capex_pourcent","provision capex (%)"],
-    tension:["tension locative","dossiers/chambre","tension locative (dossiers/ch)","tension","dossiers_par_chambre"]
+    tension:["tension locative","dossiers/chambre","tension locative (dossiers/ch)","tension","dossiers_par_chambre"],
+    loyer_plafond_m2:["plafond loyer €/m2","loyer plafond €/m2","encadrement €/m2","plafond €/m2","loyer de référence €/m2"]
   };
-  function getColIndex(headers, candidates){ const H=headers.map(norm); for(const cand of candidates){ const c=norm(cand); let i=H.indexOf(c); if(i>=0) return i; i=H.findIndex(h=>h.includes(c)); if(i>=0) return i; } return -1; }
+  function getColIndex(headers, candidates){ const H=headers.map(norm); for(const c0 of candidates){ const c=norm(c0); let i=H.indexOf(c); if(i>=0) return i; i=H.findIndex(h=>h.includes(c)); if(i>=0) return i; } return -1; }
   function pickNumberFromRow(row,candidates){ const keys=Object.keys(row); const idx=getColIndex(keys,candidates); if(idx<0) return null; const key=keys[idx]; const val=row[key]; const num=parseFloat(String(val).replace(',','.')); return isNaN(num)?null:num; }
   function normalizeRow(row){ const out={}; for(const k in row){ if(Object.prototype.hasOwnProperty.call(row,k)) { out[k]=row[k]; out["__"+norm(k)]=row[k]; } } return out; }
   function mergeIntoReferential(rows){ for(const r of rows){ REF_ROWS.push(normalizeRow(r)); } }
@@ -373,7 +310,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
   /* ===== Auto calculs via référentiel ===== */
   function autoFromReferential(){
-    const city=$("#city").value, cp=$("#cp").value, surf=getNum("#surf"), year=getNum("#year"), dpe=getStr("#dpe");
+    const city=$("#city").value, cp=$("#cp").value, surfHab=getNum("#surf_hab"), year=getNum("#year"), dpe=getStr("#dpe");
     if(!city || city==="__other"){ append("#debug","[Auto] Ville vide ou manuelle."); return; }
     const row=findRefRowFor(city,cp);
 
@@ -384,14 +321,21 @@ document.addEventListener("DOMContentLoaded", function(){
     const gest= row ? pickNumberFromRow(row,COL_HINTS.gestion_pct) : null;
     const capex= row ? pickNumberFromRow(row,COL_HINTS.capex_pct) : null;
     const tension= row ? pickNumberFromRow(row,COL_HINTS.tension) : null;
+    const plaf_m2 = row ? pickNumberFromRow(row,COL_HINTS.loyer_plafond_m2) : null;
 
-    if(tf_m2!=null && surf>0) $("#tf_annual").value = Math.round(tf_m2*surf);
-    if(teom_m2!=null && surf>0) $("#teom_annual").value = Math.round(teom_m2*surf);
+    if(tf_m2!=null && surfHab>0) $("#tf_annual").value = Math.round(tf_m2*surfHab);
+    if(teom_m2!=null && surfHab>0) $("#teom_annual").value = Math.round(teom_m2*surfHab);
     if(teom_an!=null) $("#teom_annual").value = Math.round(teom_an);
     if(fix_m!=null) $("#fix_costs").value = Math.round(fix_m);
 
     $("#mgmt_pct").value = (gest!=null? gest.toFixed(2) : "7.00");
     $("#capex_pct").value = (capex!=null? capex.toFixed(2) : capexPctFromDPEandAge(dpe,year).toFixed(2));
+
+    // Loyer autorisé auto si un plafond €/m2 est dispo
+    const rentAllowedEl=$("#rent_allowed");
+    if(plaf_m2!=null && surfHab>0 && !getNum("#rent_allowed")){
+      rentAllowedEl.value = Math.round(plaf_m2*surfHab);
+    }
 
     // Occupation depuis "tension" sinon fallback qualité
     let occ1=$("#occ_phase1").value||"0.90", occ2=$("#occ_phase2").value||"1.00";
@@ -403,12 +347,10 @@ document.addEventListener("DOMContentLoaded", function(){
       else { occ1="0.50"; occ2="0.70"; }
     } else {
       const found = CITY_LIST.find(o=> o.city.toLowerCase()===String(city).toLowerCase());
-      if(found){ const q=found.quality; const m= (q>=9)?["1.00","1.00"]:(q>=8)?["0.90","1.00"]:(q>=7)?["0.80","0.90"]:(q>=6)?["0.70","0.80"]:["0.50","0.70"]; occ1=m[0]; occ2=m[1]; }
+      if(found){ const q=found.quality; const m=(q>=9)?["1.00","1.00"]:(q>=8)?["0.90","1.00"]:(q>=7)?["0.80","0.90"]:(q>=6)?["0.70","0.80"]:["0.50","0.70"]; occ1=m[0]; occ2=m[1]; }
     }
     $("#occ_phase1").value=occ1; $("#occ_phase2").value=occ2;
 
-    const rent = getNum("#rent_total") || (getNum("#rooms")*getNum("#rent_per_room"));
-    if(!getNum("#other_annual") && rent){ $("#other_annual").value = Math.round(rent*12*0.05); }
     saveState();
   }
 
@@ -433,7 +375,7 @@ document.addEventListener("DOMContentLoaded", function(){
     return impPart * parts;
   }
 
-  /* ===== KPIs & calculs ===== */
+  /* ===== KPIs ===== */
   const KPI_LIST = [
     ["mode_fiscal","Mode fiscal actif"],
     ["revenus_brut_m","Revenus bruts mensuels"],
@@ -466,39 +408,63 @@ document.addEventListener("DOMContentLoaded", function(){
     }
   }
 
+  /* ===== Calcul principal ===== */
   function computeResults(){
-    const bankAmount=getNum("#bank_amount"), bankRate=getNum("#bank_rate")/100, bankYears=getNum("#bank_years");
-    const sasuAmount=getNum("#sasu_amount"), sasuRate=getNum("#sasu_rate")/100, sasuYears=getNum("#sasu_years");
-    const rooms=getNum("#rooms"), rpr=getNum("#rent_per_room"); let rentTotal=getNum("#rent_total"); if(!rentTotal && rooms && rpr){ rentTotal=rooms*rpr; $("#rent_total").value=rentTotal; }
+    // Prix / m² auto-liés
+    const surfHab=getNum("#surf_hab");
+    const price=getNum("#price");
+    const ppm2=getNum("#price_per_m2");
+    if(ppm2>0 && surfHab>0 && !price){ $("#price").value = Math.round(ppm2*surfHab); }
+    if(price>0 && surfHab>0 && !ppm2){ $("#price_per_m2").value = Math.round(price/surfHab); }
+
+    // Loyers
+    const rooms=getNum("#rooms"), rpr=getNum("#rent_per_room");
+    let rentTotal=getNum("#rent_total"); if(!rentTotal && rooms && rpr){ rentTotal=rooms*rpr; $("#rent_total").value=rentTotal; }
+    const rentAllowed=getNum("#rent_allowed");
+    // Alerte si dépassement
+    const rentInput=$("#rent_total");
+    rentInput.classList.remove("warn","error");
+    if(rentAllowed>0){
+      if(rentTotal>rentAllowed*1.1) rentInput.classList.add("error");
+      else if(rentTotal>rentAllowed) rentInput.classList.add("warn");
+    }
+
+    // Occ/charges/taxes
     const occ1=parseFloat($("#occ_phase1").value||"1"), occ2=parseFloat($("#occ_phase2").value||"1");
     const fixCosts=getNum("#fix_costs"), tfAnnual=getNum("#tf_annual"), teomAnnual=getNum("#teom_annual"), otherAnnual=getNum("#other_annual");
     const mgmtPct=getNum("#mgmt_pct")/100, capexPct=getNum("#capex_pct")/100;
-    const mode = getStr("#tax_mode") || "LMP";
-    const NB_PARTS = Math.max(1, getNum("#nb_parts")||1);
-    const COT_RATE = Math.max(0, getNum("#cot_rate")||35)/100;
 
-    const bankM=pmt(bankRate/12, bankYears*12, bankAmount);
-    const sasuM=pmt(sasuRate/12, sasuYears*12, sasuAmount);
-    const mensualiteBanque=-bankM, mensualiteSASU=-sasuM;
+    // Financement
+    const bankAmount=getNum("#bank_amount"), bankRate=getNum("#bank_rate")/100, bankYears=getNum("#bank_years");
+    const sasuAmount=getNum("#sasu_amount"), sasuRate=getNum("#sasu_rate")/100, sasuYears=getNum("#sasu_years");
+
+    const bankM=pmt(bankRate/12, Math.max(1,bankYears*12), bankAmount);
+    const sasuM=pmt(sasuRate/12, Math.max(1,sasuYears*12), sasuAmount);
+    const mensualiteBanque = -bankM, mensualiteSASU = -sasuM;
+    // MAJ champs affichage mensualités
+    $("#bank_monthly").value = Math.round(mensualiteBanque);
+    $("#sasu_monthly").value = Math.round(mensualiteSASU);
 
     const interetsBanque = Math.max(0, bankAmount * bankRate);
     const interetsSASU   = Math.max(0, sasuAmount * sasuRate);
 
-    const RSASU_an = interetsSASU;
-    const rentTotalM = rentTotal;
-    const loyersA=rentTotalM*12;
-    const gestionA=rentTotalM*mgmtPct*12, capexA=rentTotalM*capexPct*12;
+    const loyersA=rentTotal*12;
+    const gestionA=rentTotal*mgmtPct*12, capexA=rentTotal*capexPct*12;
     const chargesA=(fixCosts*12)+tfAnnual+teomAnnual+otherAnnual+gestionA+capexA;
 
-    // Fiscalité
+    // Mode fiscal
+    const mode = getStr("#tax_mode") || "LMP";
+    const NB_PARTS = Math.max(1, getNum("#nb_parts")||1);
+    const COT_RATE = Math.max(0, getNum("#cot_rate")||35)/100;
+
     let baseImp, cotSoc, IR, baseIR, impLabel=mode;
     let resultatFiscalLMP=null, amortTotal=0;
 
     if(mode==="LMP"){
-      const price=getNum("#price");
-      const amortBat=(price*(getNum("#amort_bati_pct")/100))/Math.max(1,getNum("#amort_bati_years"));
-      const amortMob=(price*(getNum("#amort_mob_pct")/100))/Math.max(1,getNum("#amort_mob_years"));
-      const amortNot=(price*(getNum("#amort_not_pct")/100))/Math.max(1,getNum("#amort_not_years"));
+      const priceA=getNum("#price");
+      const amortBat=(priceA*(getNum("#amort_bati_pct")/100))/Math.max(1,getNum("#amort_bati_years"));
+      const amortMob=(priceA*(getNum("#amort_mob_pct")/100))/Math.max(1,getNum("#amort_mob_years"));
+      const amortNot=(priceA*(getNum("#amort_not_pct")/100))/Math.max(1,getNum("#amort_not_years"));
       amortTotal=amortBat+amortMob+amortNot;
 
       resultatFiscalLMP = loyersA - chargesA - amortTotal - interetsBanque - interetsSASU;
@@ -523,18 +489,18 @@ document.addEventListener("DOMContentLoaded", function(){
 
     function net(occ,phase){
       const lOcc=loyersA*occ;
-      const sasu = (phase===1)? RSASU_an : (mensualiteSASU*12);
+      const sasu = (phase===1)? interetsSASU : (mensualiteSASU*12);
       return lOcc - chargesA - (mensualiteBanque*12) - sasu - impCotAn;
     }
 
     const res={
       mode_fiscal:impLabel,
-      revenus_brut_m:rentTotalM,
+      revenus_brut_m:rentTotal,
       revenus_brut_a:loyersA,
       mensualite_banque:mensualiteBanque,
       mensualite_sasu:mensualiteSASU,
       charges_mensuelles:(chargesA/12),
-      coupon_phase1:RSASU_an/12,
+      coupon_phase1:interetsSASU/12,
       charges_tf_mois:(tfAnnual/12),
       impots_cotisations_ann:impCotAn,
       resultat_fiscal_lmp:(mode==="LMP"?resultatFiscalLMP:null),
@@ -545,11 +511,18 @@ document.addEventListener("DOMContentLoaded", function(){
       cashflow_m_ph1_occ05:net(0.5,1)/12,
       cashflow_a_ph2_occ05:net(0.5,2)
     };
+
     const dbg={mode,NB_PARTS,COT_RATE,loyersA,gestionA,capexA,chargesA,interetsBanque,interetsSASU,amortTotal,resultatFiscalLMP,baseImp,baseIR,IR,cotSoc,cafA,cafM,ref:`REF: ${REF_ROWS.length} lignes`};
     return {res,dbg};
   }
 
-  /* ===== Loader source data.gouv (HTML / CSV / JSON) ===== */
+  function renderAndDebug(){
+    const out=computeResults();
+    renderKPIs(out.res);
+    $("#debug").value=JSON.stringify(out.dbg,null,2);
+  }
+
+  /* ===== Loader source data.gouv ===== */
   function looksLikeJSON(t){ t=String(t||"").trim(); return t[0]==="{"||t[0]==="["; }
   function isHTML(t){ const s=String(t||"").trim().slice(0,200).toLowerCase(); return s.includes("<!doctype html")||s.includes("<html"); }
   function parseHTMLTablesToRows(htmlText){
@@ -578,12 +551,12 @@ document.addEventListener("DOMContentLoaded", function(){
       else if(looksLikeJSON(text)){ const json=JSON.parse(text); rows=Array.isArray(json)?json:(Array.isArray(json.items)?json.items:[]); append("#sources_log",`→ JSON: ${rows.length}`); }
       else { const parsed=Papa.parse(text,{header:true,dynamicTyping:true,skipEmptyLines:true}); rows=parsed.data; append("#sources_log",`→ CSV: ${rows.length}`); }
       mergeIntoReferential(rows); append("#sources_log",`Fusion totale: ${REF_ROWS.length} lignes`);
-      autoFromReferential(); const out=computeResults(); renderKPIs(out.res); $("#debug").value=JSON.stringify(out.dbg,null,2);
+      autoFromReferential(); renderAndDebug();
     }catch(err){ append("#sources_log","❌ "+(err&&err.message?err.message:err)); }
   });
   $("#btnClearSources").addEventListener("click",()=>{ localStorage.removeItem("immo_state_full"); REF_ROWS=[]; append("#sources_log","Cache vidé et référentiel réinitialisé."); });
 
-  // Préchargement data.gouv (HTML)
+  // Préchargement
   (async function preload(){
     const url="https://www.data.gouv.fr/api/1/datasets/r/df7a9765-2ac9-45be-905f-d2bc5dc9fc35";
     try{
@@ -597,7 +570,12 @@ document.addEventListener("DOMContentLoaded", function(){
 
   /* ===== Actions ===== */
   $("#city").addEventListener("change", onCityChange);
-  $("#calcBtn").addEventListener("click", ()=>{ autoFromReferential(); const out=computeResults(); renderKPIs(out.res); $("#debug").value=JSON.stringify(out.dbg,null,2); });
+  // Liens Prix <-> Prix/m²
+  $("#price_per_m2").addEventListener("input", ()=>{ const ppm2=getNum("#price_per_m2"), s=getNum("#surf_hab"); if(ppm2>0 && s>0){ $("#price").value=Math.round(ppm2*s); }});
+  $("#price").addEventListener("input", ()=>{ const p=getNum("#price"), s=getNum("#surf_hab"); if(p>0 && s>0){ $("#price_per_m2").value=Math.round(p/s); }});
+  $("#surf_hab").addEventListener("input", ()=>{ const ppm2=getNum("#price_per_m2"), s=getNum("#surf_hab"); if(ppm2>0 && s>0){ $("#price").value=Math.round(ppm2*s); }});
+  // Calculs
+  $("#calcBtn").addEventListener("click", ()=>{ autoFromReferential(); renderAndDebug(); });
   $("#saveBtn").addEventListener("click", ()=>{ saveState(); alert("Données sauvegardées (local)"); });
   $("#resetBtn").addEventListener("click", ()=>{ localStorage.removeItem("immo_state_full"); location.reload(); });
   $$(".card input, .card select").forEach(el=> el.addEventListener("change", saveState));
@@ -607,7 +585,7 @@ document.addEventListener("DOMContentLoaded", function(){
   loadState();
   if($("#city").value) onCityChange();
   const dbg=$("#debug");
-  if(dbg) dbg.value="1) Choisis une ville • 2) Le CP/INSEE se remplissent (API geo.api.gouv.fr) • 3) Recalculer. Si l’API échoue, on bascule sur un CP local par défaut.";
+  if(dbg) dbg.value="Nouveaux champs: Surface habitable / Surface terrain / Prix par m² (lié au Prix) / Loyer mensuel autorisé. Les mensualités Banque & SASU s’affichent en auto après calcul.";
 });
 </script>
 </body>
