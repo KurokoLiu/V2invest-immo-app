@@ -280,13 +280,36 @@ function describeRef(){
 const CP_KEYS = ["cp","code postal","code_postal","postal code","code insee","insee"];
 const CITY_KEYS = ["ville","commune","city","nom_commune"];
 const COL_HINTS = {
-  tf_m2: ["taxe fonciere €/m2","tf €/m2","tf m2","taxe fonciere m2"],
-  teom_m2: ["teom €/m2","teom m2"],
-  teom_an: ["teom annuelle (€)","teom €/an","teom an","teom"],
-  charges_fixes_m: ["charges fixes €/mois","charges mensuelles fixes (€)","charges fixes mensuelles","fix costs"],
-  gestion_pct: ["gestion locative (% loyers)","gestion locative %","frais agence %","property management %","mgmt %"],
-  capex_pct: ["provision capex (% loyers)","capex %","provision gros travaux %"],
-  tension: ["tension locative","dossiers/chambre","tension locative (dossiers/ch)"],
+  // Taxes foncières
+  tf_m2: [
+    "taxe fonciere €/m2","tf €/m2","tf m2","taxe fonciere m2",
+    "taxe_fonciere_m2","taxe_fonciere_eur_m2","tf_eur_m2","taxe fonciere (€ / m2)"
+  ],
+  // TEOM
+  teom_m2: [
+    "teom €/m2","teom m2","teom_eur_m2","teom (€ / m2)"
+  ],
+  teom_an: [
+    "teom annuelle (€)","teom €/an","teom an","teom","teom_eur_an"
+  ],
+  // Charges fixes mensuelles
+  charges_fixes_m: [
+    "charges fixes €/mois","charges mensuelles fixes (€)","charges fixes mensuelles","fix costs",
+    "charges_fixes_mensuelles","charges fixes (eur/mois)","charges_fixes_eur_mois"
+  ],
+  // Gestion locative
+  gestion_pct: [
+    "gestion locative (% loyers)","gestion locative %","frais agence %","property management %","mgmt %",
+    "gestion_locative_pourcent","gestion % loyers","gestion (%)"
+  ],
+  // CAPEX provision
+  capex_pct: [
+    "provision capex (% loyers)","capex %","provision gros travaux %","capex_pourcent","provision capex (%)"
+  ],
+  // Tension (ex: dossiers/chambre)
+  tension: [
+    "tension locative","dossiers/chambre","tension locative (dossiers/ch)","tension","dossiers_par_chambre"
+  ],
 };
 function getColIndex(headers, candidates){
   const H = headers.map(norm);
@@ -566,7 +589,44 @@ $$("input").forEach(el=> el.addEventListener("change", ()=> saveState()));
 loadState();
 describeRef();
 renderKPIs({});
-$("#debug").value = "Charge (1) des datasets API, (2) un fichier/référence Excel, et/ou (3) le COG (Insee).\nSaisis Ville/CP/Surface → Recalculer.";
-</script>
-</body>
-</html>
+
+// 🔄 Pré-chargement de sources API (chargées dès l’ouverture)
+const PRELOAD_SOURCES = [
+  // 👉 Ta source data.gouv (CSV/JSON)
+  "https://www.data.gouv.fr/api/1/datasets/r/df7a9765-2ac9-45be-905f-d2bc5dc9fc35"
+];
+
+// Charge chaque source, fusionne dans REF_ROWS, recalc si Ville/CP présents
+(async function preloadAll(){
+  for(const url of PRELOAD_SOURCES){
+    try{
+      if(document.getElementById("api_url")) document.getElementById("api_url").value = url;
+      const raw = await fetch(url, {mode:"cors"});
+      if(!raw.ok) throw new Error(`HTTP ${raw.status}`);
+      const text = await raw.text();
+      let rows = [];
+      if(text.trim().startsWith("{") || text.trim().startsWith("[")){
+        rows = (Array.isArray(JSON.parse(text)) ? JSON.parse(text) : (JSON.parse(text).items || []));
+      } else {
+        const parsed = Papa.parse(text, {header:true, dynamicTyping:true, skipEmptyLines:true});
+        rows = parsed.data;
+      }
+      // fusion
+      let added=0; for(const r of rows){ const flat={}; for(const [k,v] of Object.entries(r)){ flat[k]=v; flat["__"+(String(k).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/[^a-z0-9%€\/\.\- ]+/g,'').replace(/\s+/g,' ').trim())]=v; } flat.__sheet="API"; REF_ROWS.push(flat); added++; }
+      append("#sources_log",`Préchargée: ${url} (+${added} lignes, total=${REF_ROWS.length})`);
+    }catch(e){
+      append("#sources_log",`❌ Préchargement: ${url} → ${e.message}`);
+    }
+  }
+  describeRef();
+  // si Ville/CP déjà saisis, calcule
+  if(getStr("#cp") || getStr("#city")){
+    autoFromReferential();
+    const {res,dbg} = computeResults();
+    renderKPIs(res);
+    const dbgEl = document.getElementById("debug");
+    if(dbgEl) dbgEl.value = (dbgEl.value? dbgEl.value+"\n\n":"") + "[Préchargement]\n" + JSON.stringify(dbg,null,2);
+  } else {
+    document.getElementById("debug").value = (document.getElementById("debug").value? document.getElementById("debug").value+"\n":"") + "Sources préchargées. Saisis Ville/CP puis clique Recalculer.";
+  }
+})();
