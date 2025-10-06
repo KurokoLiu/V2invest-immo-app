@@ -1,50 +1,159 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Invest_IMMO • LMP / Simplifié + data.gouv (HTML) + Villes + CP/INSEE + CSV Import</title>
+<title>Invest_IMMO • LMP / Simplifié</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 <style>
-:root{--bg:#0f1222;--fg:#f3f5ff;--muted:#aeb3d0;--card:#171a2e;--line:#252947;--accent:#6ea8fe;--accent2:#9c6efe;--ok:#3ddc84;--bad:#ff6b6b;--warn:#f3aa2b}
+/* ===== THEME ===== */
+:root{
+  --bg: #0a0c14;
+  --card: #0f1322;
+  --elev: #141935;
+  --line: #23284d;
+  --fg: #eef1ff;
+  --muted:#a9b0cf;
+  --accent:#7aa2ff;
+  --accent2:#a777ff;
+  --ok:#35de8b;
+  --bad:#ff6b6b;
+  --warn:#f3aa2b;
+  --ring: 0 0 0 3px rgba(122,162,255,.35);
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --glass: rgba(255,255,255,.04);
+  --grad: linear-gradient(135deg, var(--accent), var(--accent2));
+}
+:root[data-theme="light"]{
+  --bg:#f7f9ff;
+  --card:#ffffff;
+  --elev:#ffffff;
+  --line:#e6e9f5;
+  --fg:#0c1230;
+  --muted:#606a86;
+  --accent:#3a7bff;
+  --accent2:#8b50ff;
+  --ok:#0fa968;
+  --bad:#e04545;
+  --warn:#b97305;
+  --ring: 0 0 0 3px rgba(58,123,255,.25);
+  --shadow: 0 10px 26px rgba(14,33,84,.12);
+  --glass: rgba(14,33,84,.04);
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,Segoe UI,Roboto,Arial}
-header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-header h1{margin:0;font-size:18px}
-.pill{padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
-.wrap{max-width:1200px;margin:24px auto;padding:0 16px 40px}
+html,body{height:100%}
+body{
+  margin:0; background: radial-gradient(1200px 700px at 15% -10%, rgba(122,162,255,.12), transparent 60%),
+                       radial-gradient(1000px 600px at 95% -10%, rgba(167,119,255,.10), transparent 55%), var(--bg);
+  color:var(--fg); font:16px/1.5 Manrope, system-ui, Segoe UI, Roboto, Arial;
+}
+
+/* ===== HEADER ===== */
+header{
+  position:sticky; top:0; z-index:10;
+  backdrop-filter:saturate(130%) blur(8px);
+  background:linear-gradient(180deg, var(--glass), transparent);
+  border-bottom:1px solid var(--line);
+  padding:14px 18px; display:flex; gap:12px; align-items:center; justify-content:space-between;
+}
+.brand{display:flex; gap:12px; align-items:center}
+.logo{
+  width:34px; height:34px; border-radius:10px;
+  background:var(--grad); box-shadow:var(--shadow);
+}
+h1{margin:0; font-size:18px}
+.header-actions{display:flex; gap:10px; align-items:center}
+.pill{padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px;white-space:nowrap}
+.btn{padding:10px 14px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;cursor:pointer}
+.btn.accent{background:var(--grad); border:none}
+.switch{
+  display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);
+}
+.switch input{appearance:none;width:44px;height:24px;border-radius:999px;background:#2a315e;position:relative;outline:none;border:1px solid var(--line);cursor:pointer}
+.switch input:checked{background:#dfe6ff}
+.switch input::after{
+  content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:999px; background:#fff; transition:all .2s ease;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+}
+.switch input:checked::after{left:22px; background:#2b3d80}
+
+/* ===== LAYOUT ===== */
+.wrap{max-width:1200px;margin:22px auto 60px;padding:0 16px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .tab-btn{padding:10px 14px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;cursor:pointer}
-.tab-btn.active{outline:2px solid var(--accent)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.tab-btn.active{outline:2px solid transparent; box-shadow:var(--ring)}
+.card{
+  background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00)), var(--card);
+  border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:var(--shadow);
+}
+.card h2{margin:0 0 12px 0; font-size:18px}
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
 .col-12{grid-column:span 12}.col-8{grid-column:span 8}.col-6{grid-column:span 6}.col-4{grid-column:span 4}.col-3{grid-column:span 3}.col-2{grid-column:span 2}.col-1{grid-column:span 1}
-label{display:block;margin:0 0 6px;color:var(--muted);font-size:13px}
-input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);background:#111428;color:var(--fg);border-radius:8px;outline:none}
-input[disabled]{opacity:.7}
+@media(max-width:960px){.col-8,.col-6,.col-4,.col-3,.col-2,.col-1{grid-column:span 12}}
+
+label{display:block;margin:0 0 6px;color:var(--muted);font-size:12px}
+input,select,textarea{
+  width:100%; padding:11px 12px; border:1px solid var(--line); background:var(--elev); color:var(--fg);
+  border-radius:12px; outline:none; transition:box-shadow .15s,border-color .15s,transform .05s;
+}
+input:focus,select:focus,textarea:focus{ box-shadow:var(--ring); border-color:transparent; }
+input[disabled],select[disabled]{opacity:.8}
 input.warn{border-color:var(--warn)}
 input.error{border-color:var(--bad)}
-.btn{padding:10px 14px;border:1px solid var(--line);background:#111428;color:#fff;border-radius:10px;cursor:pointer}
-.btn.accent{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none}
-.kpi{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
-.kpi .item{grid-column:span 6;background:#111428;border:1px solid var(--line);border-radius:12px;padding:14px}
-.kpi h3{margin:0 0 6px;font-size:14px;color:var(--muted)}
-.val{font-size:20px;font-weight:700}
-.pos{color:var(--ok)}.neg{color:var(--bad)}
-.mono{font-family:ui-monospace,monospace;font-size:12px}
 .sep{height:1px;background:var(--line);margin:16px 0}
 .hint{color:var(--muted);font-size:12px}
-.badge{display:inline-block;padding:4px 8px;border:1px solid var(--line);border-radius:999px;margin-right:6px}
-#drop_zone{border:1px dashed var(--line);border-radius:10px;padding:16px;text-align:center}
-#drop_zone.drag{background:#0d1025}
-@media(max-width:900px){.col-8,.col-6,.col-4,.col-3,.col-2,.col-1{grid-column:span 12}.kpi .item{grid-column:span 12}}
+.badge{display:inline-block;padding:6px 10px;border:1px solid var(--line);border-radius:999px;margin-right:6px;background:var(--elev)}
+.inline{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+#drop_zone{border:1px dashed var(--line);border-radius:12px;padding:18px;text-align:center;background:var(--elev)}
+#drop_zone.drag{background:linear-gradient(180deg, rgba(122,162,255,.12), transparent)}
+
+/* ===== KPI ===== */
+.kpi{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+.kpi .item{
+  grid-column:span 6; border-radius:16px; padding:14px 14px 16px;
+  background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,0)), var(--card);
+  border:1px solid transparent; position:relative; overflow:hidden;
+}
+.kpi .item::before{
+  content:""; position:absolute; inset:0; border-radius:16px;
+  padding:1px; background:linear-gradient(135deg, rgba(122,162,255,.45), rgba(167,119,255,.45));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.kpi h3{margin:0 0 8px;font-size:12px;color:var(--muted)}
+.val{font-size:22px;font-weight:800}
+.pos{color:var(--ok)}.neg{color:var(--bad)}
+.bars{margin-top:10px}
+.progress{
+  height:8px; width:100%; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; border:1px solid var(--line)
+}
+.progress > i{display:block;height:100%; background:var(--grad); width:0; transition:width .5s ease}
+
+/* ===== MONO DEBUG ===== */
+.mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px}
+
+/* ===== LITTLE ANIMS ===== */
+.fade-in{animation:fade .28s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
 </style>
 </head>
 <body>
 <header>
-  <h1>Invest_IMMO • Mode fiscal LMP / Simplifié</h1>
-  <span class="pill">data.gouv (HTML) + Villes + CP/INSEE + PMT auto + Import CSV</span>
-  <button class="btn" id="resetBtn">Réinitialiser</button>
+  <div class="brand">
+    <div class="logo" aria-hidden="true"></div>
+    <h1>Invest_IMMO • LMP / Simplifié</h1>
+    <span class="pill">UI refresh + Light/Dark</span>
+  </div>
+  <div class="header-actions">
+    <label class="switch">Light
+      <input id="themeToggle" type="checkbox" aria-label="Changer de thème">
+      Dark
+    </label>
+    <button class="btn" id="resetBtn">Réinitialiser</button>
+  </div>
 </header>
 
 <div class="wrap">
@@ -52,11 +161,11 @@ input.error{border-color:var(--bad)}
     <button class="tab-btn active" data-tab="saisie">Saisie</button>
     <button class="tab-btn" data-tab="fiscal">Fiscalité</button>
     <button class="tab-btn" data-tab="result">Résultats</button>
-    <button class="tab-btn" data-tab="sources">Sources (URL / CSV)</button>
+    <button class="tab-btn" data-tab="sources">Sources</button>
   </nav>
 
   <!-- Saisie -->
-  <section class="card" data-panel="saisie">
+  <section class="card fade-in" data-panel="saisie">
     <h2>Saisie du bien</h2>
     <div class="grid">
       <div class="col-6">
@@ -67,7 +176,7 @@ input.error{border-color:var(--bad)}
 
       <div class="col-3">
         <label>Code postal</label>
-        <input id="cp" list="cp_options" placeholder="94340">
+        <input id="cp" list="cp_options" placeholder="94340" inputmode="numeric">
         <datalist id="cp_options"></datalist>
       </div>
 
@@ -80,18 +189,16 @@ input.error{border-color:var(--bad)}
 
       <div class="col-3"><label>Adresse</label><input id="address" placeholder="3 rue Exemple"></div>
 
-      <!-- Surfaces -->
       <div class="col-2"><label>Surface habitable (m²)</label><input id="surf_hab" type="number"></div>
       <div class="col-2"><label>Surface terrain (m²)</label><input id="surf_land" type="number"></div>
 
-      <!-- Prix et prix/m² liés -->
-      <div class="col-2"><label>Prix par m² (€) (à saisir)</label><input id="price_per_m2" type="number" step="1"></div>
+      <div class="col-2"><label>Prix par m² (€)</label><input id="price_per_m2" type="number" step="1"></div>
       <div class="col-3"><label>Prix d’achat FAI (€)</label><input id="price" type="number"></div>
 
       <div class="col-12"><div class="sep"></div></div>
 
-      <div class="col-2"><label>DPE</label><input id="dpe" placeholder="A–G"></div>
-      <div class="col-2"><label>Année</label><input id="year" type="number"></div>
+      <div class="col-2"><label>DPE</label><input id="dpe" placeholder="A–G" maxlength="1"></div>
+      <div class="col-2"><label>Année</label><input id="year" type="number" inputmode="numeric"></div>
 
       <div class="col-2"><label>Chambres louables</label><input id="rooms" type="number"></div>
       <div class="col-2"><label>Loyer/chambre (€)</label><input id="rent_per_room" type="number"></div>
@@ -99,7 +206,6 @@ input.error{border-color:var(--bad)}
 
       <div class="col-2"><label>Loyer total mensuel autorisé (€)</label><input id="rent_allowed" type="number"></div>
 
-      <!-- Auto calculés via source -->
       <div class="col-3"><label>Charges mensuelles fixes (€) — auto</label><input id="fix_costs" type="number" disabled></div>
       <div class="col-3"><label>Taxe foncière annuelle (€) — auto</label><input id="tf_annual" type="number" disabled></div>
       <div class="col-3"><label>TEOM annuelle (€) — auto</label><input id="teom_annual" type="number" disabled></div>
@@ -107,7 +213,7 @@ input.error{border-color:var(--bad)}
     </div>
 
     <div class="sep"></div>
-    <h3>Financement</h3>
+    <h2>Financement</h2>
     <div class="grid">
       <div class="col-4"><label>Montant prêt banque (€)</label><input id="bank_amount" type="number"></div>
       <div class="col-4"><label>Taux banque (% annuel)</label><input id="bank_rate" type="number" step="0.01"></div>
@@ -117,19 +223,18 @@ input.error{border-color:var(--bad)}
       <div class="col-4"><label>Taux SASU (% annuel)</label><input id="sasu_rate" type="number" step="0.01"></div>
       <div class="col-4"><label>Durée SASU (années)</label><input id="sasu_years" type="number"></div>
 
-      <!-- Mensualités auto -->
       <div class="col-6"><label>Mensualité banque (calcul auto)</label><input id="bank_monthly" type="number" disabled></div>
       <div class="col-6"><label>Mensualité SASU (calcul auto)</label><input id="sasu_monthly" type="number" disabled></div>
     </div>
 
-    <div style="margin-top:12px">
+    <div style="margin-top:12px" class="inline">
       <button class="btn accent" id="calcBtn">Recalculer</button>
       <button class="btn" id="saveBtn">Enregistrer</button>
     </div>
   </section>
 
   <!-- Fiscalité -->
-  <section class="card" data-panel="fiscal" hidden>
+  <section class="card fade-in" data-panel="fiscal" hidden>
     <h2>Régime fiscal & hypothèses</h2>
     <div class="grid">
       <div class="col-4">
@@ -149,7 +254,7 @@ input.error{border-color:var(--bad)}
     </div>
 
     <div class="sep"></div>
-    <h3>Hypothèses Amortissements (LMP)</h3>
+    <h2>Hypothèses amortissements (LMP)</h2>
     <p class="hint">N’affecte que le mode LMP.</p>
     <div class="grid">
       <div class="col-3"><label>% valeur bâtie (hors terrain)</label><input id="amort_bati_pct" type="number" step="1" value="85"></div>
@@ -162,16 +267,16 @@ input.error{border-color:var(--bad)}
   </section>
 
   <!-- Résultats -->
-  <section class="card" data-panel="result" hidden>
+  <section class="card fade-in" data-panel="result" hidden>
     <h2>Résultats</h2>
     <div class="kpi" id="kpiList"></div>
     <div class="sep"></div>
-    <textarea id="debug" rows="16" class="mono" style="width:100%" readonly></textarea>
+    <textarea id="debug" rows="14" class="mono" style="width:100%" readonly></textarea>
   </section>
 
   <!-- Sources -->
-  <section class="card" data-panel="sources" hidden>
-    <h2>Sources – Lien HTML direct (data.gouv) ou CSV/JSON</h2>
+  <section class="card fade-in" data-panel="sources" hidden>
+    <h2>Sources – URL (HTML/CSV/JSON) & Import CSV</h2>
 
     <div class="grid">
       <div class="col-12">
@@ -180,13 +285,14 @@ input.error{border-color:var(--bad)}
       </div>
     </div>
 
-    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
+    <div class="inline" style="margin-top:10px">
       <button class="btn accent" id="btnLoadSource">Charger & Fusionner (URL)</button>
       <button class="btn" id="btnClearSources">Vider le cache des sources</button>
+      <span class="hint">Les colonnes reconnues (heuristiques) remplissent automatiquement vos champs auto.</span>
     </div>
 
     <div class="sep"></div>
-    <h3>Importer des CSV (compléter la base)</h3>
+    <h2>Importer des CSV (compléter la base)</h2>
     <div class="grid">
       <div class="col-12">
         <label>Fichiers CSV (plusieurs autorisés)</label>
@@ -198,33 +304,40 @@ input.error{border-color:var(--bad)}
     </div>
 
     <div class="sep"></div>
-    <h3>Journal (sources)</h3>
+    <h2>Journal</h2>
     <textarea id="sources_log" rows="10" class="mono" style="width:100%" readonly></textarea>
   </section>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function(){
-  /* ===== Utils ===== */
+  /* ===== THEME TOGGLE ===== */
+  const root=document.documentElement;
+  const themeToggle = document.getElementById("themeToggle");
+  function setTheme(mode){ root.setAttribute("data-theme", mode); localStorage.setItem("immo_theme", mode); themeToggle.checked = (mode==="dark"); }
+  setTheme(localStorage.getItem("immo_theme") || "dark");
+  themeToggle.addEventListener("change", ()=> setTheme(themeToggle.checked?"dark":"light"));
+
+  /* ===== Short utils ===== */
   function norm(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9%€\/\.\- ]+/g,"").replace(/\s+/g," ").trim();}
   const $=s=>document.querySelector(s), $$=s=>[].slice.call(document.querySelectorAll(s));
   const fmtEur=v=>isNaN(v)?'—':v.toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});
   function pmt(r,n,p){ if(r===0) return -(p/n); return -(p*(r)*Math.pow(1+r,n))/(Math.pow(1+r,n)-1); }
   function getNum(sel){ const el=$(sel); const v=el?parseFloat(el.value):NaN; return isNaN(v)?0:v; }
   function getStr(sel){ const el=$(sel); return el?String(el.value).trim():""; }
-  function saveState(){ const inputs=[].slice.call(document.querySelectorAll("input,select")).reduce((a,el)=>{a[el.id]=el.value;return a;},{}); localStorage.setItem("immo_state_full", JSON.stringify(inputs)); }
+  function saveState(){ const inputs=[...document.querySelectorAll("input,select")].reduce((a,el)=>{a[el.id]=el.value;return a;},{}); localStorage.setItem("immo_state_full", JSON.stringify(inputs)); }
   function loadState(){ const raw=localStorage.getItem("immo_state_full"); if(!raw) return; const d=JSON.parse(raw); Object.keys(d).forEach(k=>{ const el=document.getElementById(k); if(el) el.value=d[k]; }); }
   function append(id,msg){ const el=$(id); if(!el) return; el.value+=(el.value?"\n":"")+msg; el.scrollTop=el.scrollHeight; }
-  function logSrc(msg){ append("#sources_log", msg); }
+  const logSrc = (m)=>append("#sources_log", m);
 
-  /* ===== Onglets ===== */
+  /* ===== Tabs ===== */
   $("#tabs").addEventListener("click", e=>{
     const b=e.target.closest(".tab-btn"); if(!b) return;
     $$(".tab-btn").forEach(x=>x.classList.remove("active")); b.classList.add("active");
     $$("[data-panel]").forEach(p=> p.hidden = (p.dataset.panel!==b.dataset.tab));
   });
 
-  /* ===== Villes (extrait) ===== */
+  /* ===== City list (exemple compact) ===== */
   const CITY_LIST = [
     {dep:"Val-de-Marne",dep_code:"94",city:"Joinville-le-Pont",transport:"RER A",mins:10,quality:9},
     {dep:"Yvelines",dep_code:"78",city:"Versailles",transport:"RER C",mins:20,quality:9},
@@ -233,24 +346,31 @@ document.addEventListener("DOMContentLoaded", function(){
   ];
   function populateCitySelect(){
     const sel=$("#city"); sel.innerHTML="";
-    const def=document.createElement("option"); def.value=""; def.textContent="— Sélectionner —"; sel.appendChild(def);
-    CITY_LIST.forEach(o=>{ const op=document.createElement("option"); op.value=o.city; op.textContent=`${o.city} (${o.dep_code})`; op.dataset.dep=o.dep_code; op.dataset.info=JSON.stringify(o); sel.appendChild(op); });
+    sel.insertAdjacentHTML("beforeend", `<option value="">— Sélectionner —</option>`);
+    CITY_LIST.forEach(o=>{
+      const op=document.createElement("option");
+      op.value=o.city; op.textContent=`${o.city} (${o.dep_code})`;
+      op.dataset.dep=o.dep_code; op.dataset.info=JSON.stringify(o);
+      sel.appendChild(op);
+    });
     const other=document.createElement("option"); other.value="__other"; other.textContent="Autre ville (saisie manuelle)"; sel.appendChild(other);
   }
-  function qualityToOcc(q){ if(q>=9) return ["1.00","1.00"]; if(q>=8) return ["0.90","1.00"]; if(q>=7) return ["0.80","0.90"]; if(q>=6) return ["0.70","0.80"]; return ["0.50","0.70"]; }
+  const qualityToOcc = (q)=> (q>=9)?["1.00","1.00"]:(q>=8)?["0.90","1.00"]:(q>=7)?["0.80","0.90"]:(q>=6)?["0.70","0.80"]:["0.50","0.70"];
 
-  /* ===== API GEO.GOUV (CP + INSEE) ===== */
+  /* ===== geo.api.gouv (CP/INSEE) ===== */
   async function fetchCommune(city, depCode){
     const url = `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(city)}${depCode?`&codeDepartement=${encodeURIComponent(depCode)}`:""}&fields=codesPostaux,code,nom&boost=population&limit=10`;
     const res = await fetch(url, {mode:"cors"}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.json();
   }
-  function fillCpList(codes){ const dl=$("#cp_options"); dl.innerHTML=""; (codes||[]).forEach(cp=>{ const opt=document.createElement("option"); opt.value=cp; dl.appendChild(opt); }); }
+  function fillCpList(codes){ const dl=$("#cp_options"); dl.innerHTML=""; (codes||[]).forEach(cp=> dl.insertAdjacentHTML("beforeend", `<option value="${cp}">`)); }
   async function setCpInseeFromCity(city, depCode){
     const cpInput=$("#cp"), insee=$("#insee");
     try{
-      const data = await fetchCommune(city, depCode); if(!data || !data.length) throw new Error("Commune introuvable");
+      const data = await fetchCommune(city, depCode);
+      if(!data || !data.length) throw new Error("Commune introuvable");
       const best = data[0]; const cpList = best.codesPostaux || [];
-      fillCpList(cpList); if(cpList.length && (!cpInput.value || !cpList.includes(cpInput.value))) cpInput.value = cpList[0];
+      fillCpList(cpList);
+      if(cpList.length && (!cpInput.value || !cpList.includes(cpInput.value))) cpInput.value = cpList[0];
       insee.value = best.code || "";
     }catch(e){ if(!insee.value) insee.value=""; }
   }
@@ -262,7 +382,6 @@ document.addEventListener("DOMContentLoaded", function(){
       $("#insee").value = match.code || $("#insee").value;
     }catch(_e){}
   }
-
   async function onCityChange(){
     const sel=$("#city"), info=$("#city_info"); const v=sel.value;
     if(!v){ info.textContent=""; return; }
@@ -284,7 +403,7 @@ document.addEventListener("DOMContentLoaded", function(){
     }, 350);
   });
 
-  /* ===== Référentiel / Heuristiques ===== */
+  /* ===== Referential (same logic) ===== */
   window.REF_ROWS = [];
   const CP_KEYS = ["cp","code postal","code_postal","postal code","code insee","insee","codgeo","codgeo commune"];
   const CITY_KEYS = ["ville","commune","city","nom_commune","nom","libelle","libellé"];
@@ -310,7 +429,7 @@ document.addEventListener("DOMContentLoaded", function(){
     return null;
   }
 
-  /* ===== CAPEX (DPE×Âge) ===== */
+  /* ===== CAPEX table ===== */
   function capexPctFromDPEandAge(dpe, year){
     const y = parseInt(year||0,10);
     const age = (y>0) ? Math.max(0, new Date().getFullYear()-y) : 40;
@@ -323,7 +442,7 @@ document.addEventListener("DOMContentLoaded", function(){
     return (T[d]||T["D"])[bucket];
   }
 
-  /* ===== Auto calculs via référentiel ===== */
+  /* ===== Auto from referential ===== */
   function autoFromReferential(){
     const city=$("#city").value, cp=$("#cp").value, surfHab=getNum("#surf_hab"), year=getNum("#year"), dpe=getStr("#dpe");
     if(!city || city==="__other"){ append("#debug","[Auto] Ville vide ou manuelle."); return; }
@@ -346,13 +465,10 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#mgmt_pct").value = (gest!=null? gest.toFixed(2) : "7.00");
     $("#capex_pct").value = (capex!=null? capex.toFixed(2) : capexPctFromDPEandAge(dpe,year).toFixed(2));
 
-    // Loyer autorisé auto si un plafond €/m² est dispo
-    const rentAllowedEl=$("#rent_allowed");
     if(plaf_m2!=null && surfHab>0 && !getNum("#rent_allowed")){
-      rentAllowedEl.value = Math.round(plaf_m2*surfHab);
+      $("#rent_allowed").value = Math.round(plaf_m2*surfHab);
     }
 
-    // Occupation depuis "tension" sinon fallback qualité
     let occ1=$("#occ_phase1").value||"0.90", occ2=$("#occ_phase2").value||"1.00";
     if(tension!=null){
       if(tension>=5){ occ1="1.00"; occ2="1.00"; }
@@ -362,7 +478,7 @@ document.addEventListener("DOMContentLoaded", function(){
       else { occ1="0.50"; occ2="0.70"; }
     } else {
       const found = CITY_LIST.find(o=> o.city.toLowerCase()===String(city).toLowerCase());
-      if(found){ const q=found.quality; const m=(q>=9)?["1.00","1.00"]:(q>=8)?["0.90","1.00"]:(q>=7)?["0.80","0.90"]:(q>=6)?["0.70","0.80"]:["0.50","0.70"]; occ1=m[0]; occ2=m[1]; }
+      if(found){ const [a,b]=qualityToOcc(found.quality); occ1=a; occ2=b; }
     }
     $("#occ_phase1").value=occ1; $("#occ_phase2").value=occ2;
 
@@ -390,7 +506,7 @@ document.addEventListener("DOMContentLoaded", function(){
     return impPart * parts;
   }
 
-  /* ===== KPIs ===== */
+  /* ===== KPI render with progress bars ===== */
   const KPI_LIST = [
     ["mode_fiscal","Mode fiscal actif"],
     ["revenus_brut_m","Revenus bruts mensuels"],
@@ -412,44 +528,66 @@ document.addEventListener("DOMContentLoaded", function(){
   function renderKPIs(obj){
     const root=$("#kpiList"); root.innerHTML="";
     const money=new Set(KPI_LIST.map(k=>k[0]).filter(k=>k!=="mode_fiscal"));
-    for(const [key,label] of KPI_LIST){
-      const v=obj[key];
+    const add=(key,label,val)=>{
       const isMoney=money.has(key);
-      const sign=(typeof v==="number" && (key.includes("cashflow")||key.includes("mensualite")||key.includes("charges")||key.includes("coupon")||key.includes("resultat")||key.includes("caf")))?(v>=0?"pos":"neg"):"";
-      const el=document.createElement("div");
-      el.className="item";
-      el.innerHTML=`<h3>${label}</h3><div class="val ${sign}">${(v==null||v===undefined)?"—":(isMoney?fmtEur(v):v)}</div>`;
-      root.appendChild(el);
-    }
+      const sign=(typeof val==="number" && (key.includes("cashflow")||key.includes("mensualite")||key.includes("charges")||key.includes("coupon")||key.includes("resultat")||key.includes("caf")))?(val>=0?"pos":"neg"):"";
+      const item=document.createElement("div");
+      item.className="item";
+      item.innerHTML=`<h3>${label}</h3><div class="val ${sign}">${(val==null)?"—":(isMoney?fmtEur(val):val)}</div>`;
+      // Barres pour quelques métriques clés
+      if(key==="cashflow_m_ph1_occ1" || key==="caf_apres_impots_m" || key==="revenus_brut_m"){
+        const bar=document.createElement("div"); bar.className="bars";
+        bar.innerHTML=`<div class="progress"><i style="width:0%"></i></div>`;
+        item.appendChild(bar);
+        const i=bar.querySelector("i");
+        // normalisation simple
+        const denom = key==="revenus_brut_m" ? Math.max(1, obj.revenus_brut_m) :
+                      Math.max(1, Math.abs(obj.cashflow_m_ph1_occ1) + Math.abs(obj.charges_mensuelles));
+        const pct = Math.min(100, Math.max(0, (Math.abs(val)/denom)*100));
+        requestAnimationFrame(()=> i.style.width = pct+"%");
+      }
+      root.appendChild(item);
+    };
+    for(const [key,label] of KPI_LIST) add(key,label,obj[key]);
+    // Ajout d’un bloc “Occupations”
+    const occWrap=document.createElement("div");
+    occWrap.className="item";
+    const occ1=parseFloat($("#occ_phase1").value||"1"), occ2=parseFloat($("#occ_phase2").value||"1");
+    occWrap.innerHTML=`<h3>Occupation (auto)</h3>
+      <div class="inline" style="width:100%">
+        <div style="flex:1">
+          <div class="hint">Phase 1</div>
+          <div class="progress"><i style="width:${(occ1*100).toFixed(0)}%"></i></div>
+        </div>
+        <div style="flex:1">
+          <div class="hint">Phase 2</div>
+          <div class="progress"><i style="width:${(occ2*100).toFixed(0)}%"></i></div>
+        </div>
+      </div>`;
+    root.appendChild(occWrap);
   }
 
-  /* ===== Calcul principal ===== */
+  /* ===== Compute ===== */
   function computeResults(){
-    // Prix / m² auto-liés
     const surfHab=getNum("#surf_hab");
     const price=getNum("#price");
     const ppm2=getNum("#price_per_m2");
     if(ppm2>0 && surfHab>0 && !price){ $("#price").value = Math.round(ppm2*surfHab); }
     if(price>0 && surfHab>0 && !ppm2){ $("#price_per_m2").value = Math.round(price/surfHab); }
 
-    // Loyers
     const rooms=getNum("#rooms"), rpr=getNum("#rent_per_room");
     let rentTotal=getNum("#rent_total"); if(!rentTotal && rooms && rpr){ rentTotal=rooms*rpr; $("#rent_total").value=rentTotal; }
     const rentAllowed=getNum("#rent_allowed");
-    // Alerte si dépassement
-    const rentInput=$("#rent_total");
-    rentInput.classList.remove("warn","error");
+    const rentInput=$("#rent_total"); rentInput.classList.remove("warn","error");
     if(rentAllowed>0){
       if(rentTotal>rentAllowed*1.1) rentInput.classList.add("error");
       else if(rentTotal>rentAllowed) rentInput.classList.add("warn");
     }
 
-    // Occ/charges/taxes
     const occ1=parseFloat($("#occ_phase1").value||"1"), occ2=parseFloat($("#occ_phase2").value||"1");
     const fixCosts=getNum("#fix_costs"), tfAnnual=getNum("#tf_annual"), teomAnnual=getNum("#teom_annual"), otherAnnual=getNum("#other_annual");
     const mgmtPct=getNum("#mgmt_pct")/100, capexPct=getNum("#capex_pct")/100;
 
-    // Financement
     const bankAmount=getNum("#bank_amount"), bankRate=getNum("#bank_rate")/100, bankYears=getNum("#bank_years");
     const sasuAmount=getNum("#sasu_amount"), sasuRate=getNum("#sasu_rate")/100, sasuYears=getNum("#sasu_years");
 
@@ -466,7 +604,6 @@ document.addEventListener("DOMContentLoaded", function(){
     const gestionA=rentTotal*mgmtPct*12, capexA=rentTotal*capexPct*12;
     const chargesA=(fixCosts*12)+tfAnnual+teomAnnual+otherAnnual+gestionA+capexA;
 
-    // Mode fiscal
     const mode = getStr("#tax_mode") || "LMP";
     const NB_PARTS = Math.max(1, getNum("#nb_parts")||1);
     const COT_RATE = Math.max(0, getNum("#cot_rate")||35)/100;
@@ -497,7 +634,6 @@ document.addEventListener("DOMContentLoaded", function(){
     }
     const impCotAn = cotSoc + IR;
 
-    // CAF (après impôts, avant dette)
     const cafA = loyersA - chargesA - impCotAn;
     const cafM = cafA/12;
 
@@ -525,7 +661,6 @@ document.addEventListener("DOMContentLoaded", function(){
       cashflow_m_ph1_occ05:net(0.5,1)/12,
       cashflow_a_ph2_occ05:net(0.5,2)
     };
-
     const dbg={mode,NB_PARTS,COT_RATE,loyersA,gestionA,capexA,chargesA,interetsBanque,interetsSASU,amortTotal,resultatFiscalLMP,baseImp,baseIR,IR,cotSoc,cafA,cafM,ref:`REF: ${REF_ROWS.length} lignes`};
     return {res,dbg};
   }
@@ -536,20 +671,25 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#debug").value=JSON.stringify(out.dbg,null,2);
   }
 
-  /* ===== Loader source data.gouv (URL) ===== */
+  /* ===== Source loader (URL) ===== */
   function looksLikeJSON(t){ t=String(t||"").trim(); return t[0]==="{"||t[0]==="["; }
   function isHTML(t){ const s=String(t||"").trim().slice(0,200).toLowerCase(); return s.includes("<!doctype html")||s.includes("<html"); }
   function parseHTMLTablesToRows(htmlText){
     const parser=new DOMParser(); const doc=parser.parseFromString(htmlText,"text/html");
-    const rows=[]; [].slice.call(doc.querySelectorAll("table")).forEach(tbl=>{
-      const trs=[].slice.call(tbl.querySelectorAll("tr")); if(!trs.length) return;
+    const rows=[]; [...doc.querySelectorAll("table")].forEach(tbl=>{
+      const trs=[...tbl.querySelectorAll("tr")]; if(!trs.length) return;
       const ths=trs[0].querySelectorAll("th,td");
       if(ths.length>=2){
-        const headers=[].slice.call(ths).map(th=>th.textContent.trim());
-        for(let i=1;i<trs.length;i++){ const cells=[].slice.call(trs[i].querySelectorAll("td,th")); if(!cells.length) continue;
-          const obj={}; cells.forEach((c,idx)=>{ obj[headers[idx]||("col_"+idx)]=c.textContent.trim(); }); rows.push(obj); }
+        const headers=[...ths].map(th=>th.textContent.trim());
+        for(let i=1;i<trs.length;i++){
+          const cells=[...trs[i].querySelectorAll("td,th")]; if(!cells.length) continue;
+          const obj={}; cells.forEach((c,idx)=>{ obj[headers[idx]||("col_"+idx)]=c.textContent.trim(); }); rows.push(obj);
+        }
       } else {
-        trs.forEach(tr=>{ const cells=[].slice.call(tr.querySelectorAll("td,th")); if(!cells.length) return; const obj={}; cells.forEach((c,idx)=>{ obj["col_"+idx]=c.textContent.trim(); }); rows.push(obj); });
+        trs.forEach(tr=>{
+          const cells=[...tr.querySelectorAll("td,th")]; if(!cells.length) return;
+          const obj={}; cells.forEach((c,idx)=>{ obj["col_"+idx]=c.textContent.trim(); }); rows.push(obj);
+        });
       }
     });
     return rows;
@@ -570,7 +710,7 @@ document.addEventListener("DOMContentLoaded", function(){
   });
   $("#btnClearSources").addEventListener("click",()=>{ localStorage.removeItem("immo_state_full"); REF_ROWS=[]; logSrc("Cache vidé et référentiel réinitialisé."); });
 
-  // Préchargement (URL par défaut)
+  // Preload
   (async function preload(){
     const url="https://www.data.gouv.fr/api/1/datasets/r/df7a9765-2ac9-45be-905f-d2bc5dc9fc35";
     try{
@@ -582,16 +722,11 @@ document.addEventListener("DOMContentLoaded", function(){
     }catch(e){ logSrc("Préchargement KO: "+e.message); }
   })();
 
-  /* ===== Import CSV (fichiers) ===== */
+  /* ===== Import CSV (files) ===== */
   function parseCsvFileBrowser(file){
     return new Promise((resolve,reject)=>{
-      Papa.parse(file, {
-        header: true,
-        dynamicTyping: true,
-        skipEmptyLines: true,
-        complete: (res)=> resolve(res.data || []),
-        error: (err)=> reject(err)
-      });
+      Papa.parse(file, { header:true, dynamicTyping:true, skipEmptyLines:true,
+        complete: (res)=> resolve(res.data || []), error: (err)=> reject(err) });
     });
   }
   async function handleCsvFiles(files){
@@ -610,26 +745,15 @@ document.addEventListener("DOMContentLoaded", function(){
       }
     }
     if(totalAdded){
-      try{
-        autoFromReferential();
-        const out = computeResults();
-        renderKPIs(out.res);
-        const dbg=$("#debug"); if(dbg) dbg.value = JSON.stringify(out.dbg,null,2);
-      }catch(e){ logSrc("⚠️ Recalcul après import: "+e.message); }
+      try{ autoFromReferential(); const out = computeResults(); renderKPIs(out.res); $("#debug").value = JSON.stringify(out.dbg,null,2); }
+      catch(e){ logSrc("⚠️ Recalcul après import: "+e.message); }
       logSrc(`✅ Import terminé: ${files.length} fichier(s), ${totalRows} lignes, ${totalAdded} ajoutées.`);
-    } else {
-      logSrc(`Fin import: aucune ligne ajoutée.`);
-    }
+    } else { logSrc(`Fin import: aucune ligne ajoutée.`); }
   }
-
   const fileInput = $("#csv_files");
   const dropZone  = $("#drop_zone");
   if(fileInput){
-    fileInput.addEventListener("change", (e)=>{
-      const files = e.target.files;
-      handleCsvFiles(files);
-      e.target.value = "";
-    });
+    fileInput.addEventListener("change", (e)=>{ handleCsvFiles(e.target.files); e.target.value = ""; });
   }
   if(dropZone){
     ["dragenter","dragover"].forEach(evt=>{
@@ -646,11 +770,10 @@ document.addEventListener("DOMContentLoaded", function(){
 
   /* ===== Actions ===== */
   $("#city").addEventListener("change", onCityChange);
-  // Liens Prix <-> Prix/m²
   $("#price_per_m2").addEventListener("input", ()=>{ const ppm2=getNum("#price_per_m2"), s=getNum("#surf_hab"); if(ppm2>0 && s>0){ $("#price").value=Math.round(ppm2*s); }});
   $("#price").addEventListener("input", ()=>{ const p=getNum("#price"), s=getNum("#surf_hab"); if(p>0 && s>0){ $("#price_per_m2").value=Math.round(p/s); }});
   $("#surf_hab").addEventListener("input", ()=>{ const ppm2=getNum("#price_per_m2"), s=getNum("#surf_hab"); if(ppm2>0 && s>0){ $("#price").value=Math.round(ppm2*s); }});
-  // Calculs
+
   $("#calcBtn").addEventListener("click", ()=>{ autoFromReferential(); renderAndDebug(); });
   $("#saveBtn").addEventListener("click", ()=>{ saveState(); alert("Données sauvegardées (local)"); });
   $("#resetBtn").addEventListener("click", ()=>{ localStorage.removeItem("immo_state_full"); location.reload(); });
@@ -661,7 +784,7 @@ document.addEventListener("DOMContentLoaded", function(){
   loadState();
   if($("#city").value) onCityChange();
   const dbg=$("#debug");
-  if(dbg) dbg.value="Nouveaux champs: Surface habitable / Surface terrain / Prix par m² (lié au Prix) / Loyer mensuel autorisé. Import CSV multi-fichiers dispo (Sources). Les mensualités Banque & SASU s’affichent en auto après calcul.";
+  if(dbg) dbg.value="UI améliorée, thème clair/sombre, KPI avec barres de progression, focus rings, ombres, et import CSV. Cliquez Recalculer pour mettre à jour.";
 });
 </script>
 </body>
