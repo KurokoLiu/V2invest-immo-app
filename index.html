@@ -10,34 +10,19 @@
 <style>
 /* ===== THEME ===== */
 :root{
-  --bg: #0a0c14;
-  --card: #0f1322;
-  --elev: #141935;
-  --line: #23284d;
-  --fg: #eef1ff;
-  --muted:#a9b0cf;
-  --accent:#7aa2ff;
-  --accent2:#a777ff;
-  --ok:#35de8b;
-  --bad:#ff6b6b;
-  --warn:#f3aa2b;
+  --bg: #0a0c14; --card: #0f1322; --elev: #141935; --line: #23284d;
+  --fg: #eef1ff; --muted:#a9b0cf;
+  --accent:#7aa2ff; --accent2:#a777ff;
+  --ok:#35de8b; --bad:#ff6b6b; --warn:#f3aa2b;
   --ring: 0 0 0 3px rgba(122,162,255,.35);
   --shadow: 0 10px 30px rgba(0,0,0,.35);
   --glass: rgba(255,255,255,.04);
-  --grad: linear-gradient(135deg, var(--accent), var(--accent2));
 }
 :root[data-theme="light"]{
-  --bg:#f7f9ff;
-  --card:#ffffff;
-  --elev:#ffffff;
-  --line:#e6e9f5;
-  --fg:#0c1230;
-  --muted:#606a86;
-  --accent:#3a7bff;
-  --accent2:#8b50ff;
-  --ok:#0fa968;
-  --bad:#e04545;
-  --warn:#b97305;
+  --bg:#f7f9ff; --card:#ffffff; --elev:#ffffff; --line:#e6e9f5;
+  --fg:#0c1230; --muted:#606a86;
+  --accent:#3a7bff; --accent2:#8b50ff;
+  --ok:#0fa968; --bad:#e04545; --warn:#b97305;
   --ring: 0 0 0 3px rgba(58,123,255,.25);
   --shadow: 0 10px 26px rgba(14,33,84,.12);
   --glass: rgba(14,33,84,.04);
@@ -45,38 +30,31 @@
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
-  margin:0; background: radial-gradient(1200px 700px at 15% -10%, rgba(122,162,255,.12), transparent 60%),
-                       radial-gradient(1000px 600px at 95% -10%, rgba(167,119,255,.10), transparent 55%), var(--bg);
+  margin:0;
+  background:
+    radial-gradient(1200px 700px at 15% -10%, rgba(122,162,255,.12), transparent 60%),
+    radial-gradient(1000px 600px at 95% -10%, rgba(167,119,255,.10), transparent 55%),
+    var(--bg);
   color:var(--fg); font:16px/1.5 Manrope, system-ui, Segoe UI, Roboto, Arial;
 }
 
 /* ===== HEADER ===== */
 header{
-  position:sticky; top:0; z-index:10;
-  backdrop-filter:saturate(130%) blur(8px);
-  background:linear-gradient(180deg, var(--glass), transparent);
-  border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:10; backdrop-filter:saturate(130%) blur(8px);
+  background:linear-gradient(180deg, var(--glass), transparent); border-bottom:1px solid var(--line);
   padding:14px 18px; display:flex; gap:12px; align-items:center; justify-content:space-between;
 }
 .brand{display:flex; gap:12px; align-items:center}
-.logo{
-  width:34px; height:34px; border-radius:10px;
-  background:var(--grad); box-shadow:var(--shadow);
-}
+.logo{width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,var(--accent),var(--accent2)); box-shadow:var(--shadow)}
 h1{margin:0; font-size:18px}
 .header-actions{display:flex; gap:10px; align-items:center}
 .pill{padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px;white-space:nowrap}
 .btn{padding:10px 14px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;cursor:pointer}
-.btn.accent{background:var(--grad); border:none}
-.switch{
-  display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);
-}
+.btn.accent{background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none}
+.switch{display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--muted)}
 .switch input{appearance:none;width:44px;height:24px;border-radius:999px;background:#2a315e;position:relative;outline:none;border:1px solid var(--line);cursor:pointer}
 .switch input:checked{background:#dfe6ff}
-.switch input::after{
-  content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:999px; background:#fff; transition:all .2s ease;
-  box-shadow:0 2px 8px rgba(0,0,0,.25);
-}
+.switch input::after{content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:999px; background:#fff; transition:all .2s ease; box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .switch input:checked::after{left:22px; background:#2b3d80}
 
 /* ===== LAYOUT ===== */
@@ -85,7 +63,7 @@ h1{margin:0; font-size:18px}
 .tab-btn{padding:10px 14px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;cursor:pointer}
 .tab-btn.active{outline:2px solid transparent; box-shadow:var(--ring)}
 .card{
-  background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00)), var(--card);
+  background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0)), var(--card);
   border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:var(--shadow);
 }
 .card h2{margin:0 0 12px 0; font-size:18px}
@@ -106,7 +84,6 @@ input.error{border-color:var(--bad)}
 .hint{color:var(--muted);font-size:12px}
 .badge{display:inline-block;padding:6px 10px;border:1px solid var(--line);border-radius:999px;margin-right:6px;background:var(--elev)}
 .inline{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
-
 #drop_zone{border:1px dashed var(--line);border-radius:12px;padding:18px;text-align:center;background:var(--elev)}
 #drop_zone.drag{background:linear-gradient(180deg, rgba(122,162,255,.12), transparent)}
 
@@ -118,8 +95,8 @@ input.error{border-color:var(--bad)}
   border:1px solid transparent; position:relative; overflow:hidden;
 }
 .kpi .item::before{
-  content:""; position:absolute; inset:0; border-radius:16px;
-  padding:1px; background:linear-gradient(135deg, rgba(122,162,255,.45), rgba(167,119,255,.45));
+  content:""; position:absolute; inset:0; border-radius:16px; padding:1px;
+  background:linear-gradient(135deg, rgba(122,162,255,.45), rgba(167,119,255,.45));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
 }
@@ -127,15 +104,11 @@ input.error{border-color:var(--bad)}
 .val{font-size:22px;font-weight:800}
 .pos{color:var(--ok)}.neg{color:var(--bad)}
 .bars{margin-top:10px}
-.progress{
-  height:8px; width:100%; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; border:1px solid var(--line)
-}
-.progress > i{display:block;height:100%; background:var(--grad); width:0; transition:width .5s ease}
+.progress{height:8px; width:100%; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; border:1px solid var(--line)}
+.progress > i{display:block;height:100%; background:linear-gradient(135deg,var(--accent),var(--accent2)); width:0; transition:width .5s ease}
 
 /* ===== MONO DEBUG ===== */
 .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px}
-
-/* ===== LITTLE ANIMS ===== */
 .fade-in{animation:fade .28s ease}
 @keyframes fade{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
 </style>
@@ -145,7 +118,7 @@ input.error{border-color:var(--bad)}
   <div class="brand">
     <div class="logo" aria-hidden="true"></div>
     <h1>Invest_IMMO • LMP / Simplifié</h1>
-    <span class="pill">UI refresh + Light/Dark</span>
+    <span class="pill">UI refresh + Light/Dark + Presets</span>
   </div>
   <div class="header-actions">
     <label class="switch">Light
@@ -188,10 +161,8 @@ input.error{border-color:var(--bad)}
       <div class="col-12"><div class="sep"></div></div>
 
       <div class="col-3"><label>Adresse</label><input id="address" placeholder="3 rue Exemple"></div>
-
       <div class="col-2"><label>Surface habitable (m²)</label><input id="surf_hab" type="number"></div>
       <div class="col-2"><label>Surface terrain (m²)</label><input id="surf_land" type="number"></div>
-
       <div class="col-2"><label>Prix par m² (€)</label><input id="price_per_m2" type="number" step="1"></div>
       <div class="col-3"><label>Prix d’achat FAI (€)</label><input id="price" type="number"></div>
 
@@ -199,11 +170,9 @@ input.error{border-color:var(--bad)}
 
       <div class="col-2"><label>DPE</label><input id="dpe" placeholder="A–G" maxlength="1"></div>
       <div class="col-2"><label>Année</label><input id="year" type="number" inputmode="numeric"></div>
-
       <div class="col-2"><label>Chambres louables</label><input id="rooms" type="number"></div>
       <div class="col-2"><label>Loyer/chambre (€)</label><input id="rent_per_room" type="number"></div>
       <div class="col-2"><label>Loyer total mensuel (€)</label><input id="rent_total" type="number" placeholder="Auto: nb × loyer/ch."></div>
-
       <div class="col-2"><label>Loyer total mensuel autorisé (€)</label><input id="rent_allowed" type="number"></div>
 
       <div class="col-3"><label>Charges mensuelles fixes (€) — auto</label><input id="fix_costs" type="number" disabled></div>
@@ -270,13 +239,15 @@ input.error{border-color:var(--bad)}
   <section class="card fade-in" data-panel="result" hidden>
     <h2>Résultats</h2>
     <div class="kpi" id="kpiList"></div>
+    <!-- KPIs géo -->
+    <div class="kpi" id="kpiGeo" style="margin-top:12px"></div>
     <div class="sep"></div>
     <textarea id="debug" rows="14" class="mono" style="width:100%" readonly></textarea>
   </section>
 
   <!-- Sources -->
   <section class="card fade-in" data-panel="sources" hidden>
-    <h2>Sources – URL (HTML/CSV/JSON) & Import CSV</h2>
+    <h2>Sources – URL (HTML/CSV/JSON), Presets, Import CSV</h2>
 
     <div class="grid">
       <div class="col-12">
@@ -288,7 +259,17 @@ input.error{border-color:var(--bad)}
     <div class="inline" style="margin-top:10px">
       <button class="btn accent" id="btnLoadSource">Charger & Fusionner (URL)</button>
       <button class="btn" id="btnClearSources">Vider le cache des sources</button>
-      <span class="hint">Les colonnes reconnues (heuristiques) remplissent automatiquement vos champs auto.</span>
+
+      <select id="preset_source" style="min-width:360px">
+        <option value="">— Charger un preset data.gouv —</option>
+        <option value="https://www.data.gouv.fr/api/1/datasets/r/df7a9765-2ac9-45be-905f-d2bc5dc9fc35">
+          (HTML/CSV/JSON) Référentiel initial (taxes/charges…)
+        </option>
+        <option value="https://www.data.gouv.fr/api/1/datasets/r/f5df602b-3800-44d7-b2df-fa40a0350325">
+          Communes & villes de France (INSEE/CP/infos)
+        </option>
+      </select>
+      <button class="btn" id="btnLoadPreset">Charger le preset</button>
     </div>
 
     <div class="sep"></div>
@@ -318,7 +299,7 @@ document.addEventListener("DOMContentLoaded", function(){
   setTheme(localStorage.getItem("immo_theme") || "dark");
   themeToggle.addEventListener("change", ()=> setTheme(themeToggle.checked?"dark":"light"));
 
-  /* ===== Short utils ===== */
+  /* ===== Utils ===== */
   function norm(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9%€\/\.\- ]+/g,"").replace(/\s+/g," ").trim();}
   const $=s=>document.querySelector(s), $$=s=>[].slice.call(document.querySelectorAll(s));
   const fmtEur=v=>isNaN(v)?'—':v.toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});
@@ -337,7 +318,7 @@ document.addEventListener("DOMContentLoaded", function(){
     $$("[data-panel]").forEach(p=> p.hidden = (p.dataset.panel!==b.dataset.tab));
   });
 
-  /* ===== City list (exemple compact) ===== */
+  /* ===== City list (exemple) ===== */
   const CITY_LIST = [
     {dep:"Val-de-Marne",dep_code:"94",city:"Joinville-le-Pont",transport:"RER A",mins:10,quality:9},
     {dep:"Yvelines",dep_code:"78",city:"Versailles",transport:"RER C",mins:20,quality:9},
@@ -403,7 +384,7 @@ document.addEventListener("DOMContentLoaded", function(){
     }, 350);
   });
 
-  /* ===== Referential (same logic) ===== */
+  /* ===== Référentiel / Heuristiques ===== */
   window.REF_ROWS = [];
   const CP_KEYS = ["cp","code postal","code_postal","postal code","code insee","insee","codgeo","codgeo commune"];
   const CITY_KEYS = ["ville","commune","city","nom_commune","nom","libelle","libellé"];
@@ -429,7 +410,7 @@ document.addEventListener("DOMContentLoaded", function(){
     return null;
   }
 
-  /* ===== CAPEX table ===== */
+  /* ===== CAPEX (DPE×Âge) ===== */
   function capexPctFromDPEandAge(dpe, year){
     const y = parseInt(year||0,10);
     const age = (y>0) ? Math.max(0, new Date().getFullYear()-y) : 40;
@@ -442,7 +423,66 @@ document.addEventListener("DOMContentLoaded", function(){
     return (T[d]||T["D"])[bucket];
   }
 
-  /* ===== Auto from referential ===== */
+  /* ===== Module Communes & Villes (mapping) ===== */
+  const COMMUNE_KEYS = {
+    insee:["code_insee","insee","code insee","codgeo","code commune"],
+    cp_multi:["codes_postaux","codes postaux","liste code postal","codes postaux (csv)"],
+    cp_single:["code_postal","code postal","cp"],
+    population:["population","population municipale","pop_totale","pop 2021","population 2021","pop"],
+    surface_km2:["surface_km2","superficie (km2)","superficie_km2","surface (km²)","surface (km2)","superficie_km2"],
+    densite:["densite","densité","densite_hab_km2","densité (hab/km²)","densité_km2"],
+    lat:["latitude","lat","lat_commune","centre_lat"],
+    lon:["longitude","lon","lng","long_commune","centre_lon"],
+    nom:["nom_commune","nom","commune","ville","libelle","libellé"]
+  };
+  function pickValue(row, aliases){
+    const keys = Object.keys(row);
+    for(const alias of aliases){
+      const idx = keys.map(norm).indexOf(norm(alias));
+      if(idx>=0){ const v = row[keys[idx]]; if(v!==undefined && v!==null && String(v).trim()!=="") return v; }
+    }
+    for(const alias of aliases){
+      const hit = keys.find(k => norm(k).includes(norm(alias)));
+      if(hit){ const v = row[hit]; if(v!==undefined && v!==null && String(v).trim()!=="") return v; }
+    }
+    return null;
+  }
+  function mapCommuneRow(row){
+    const o={};
+    o.insee   = pickValue(row, COMMUNE_KEYS.insee);
+    o.nom     = pickValue(row, COMMUNE_KEYS.nom);
+    let cp = pickValue(row, COMMUNE_KEYS.cp_single) || pickValue(row, COMMUNE_KEYS.cp_multi);
+    if(typeof cp === "string"){ cp = cp.replace(/;/g,",").replace(/\s+/g,","); }
+    o.cp_list = Array.isArray(cp) ? cp : (cp ? String(cp).split(",") : []);
+    o.population = Number(String(pickValue(row, COMMUNE_KEYS.population)).replace(",","."));
+    o.surface_km2= Number(String(pickValue(row, COMMUNE_KEYS.surface_km2)).replace(",","."));
+    let dens     = pickValue(row, COMMUNE_KEYS.densite);
+    o.densite    = dens!=null ? Number(String(dens).replace(",", ".")) : null;
+    o.lat        = Number(pickValue(row, COMMUNE_KEYS.lat));
+    o.lon        = Number(pickValue(row, COMMUNE_KEYS.lon));
+    if((o.densite==null || isNaN(o.densite)) && o.population>0 && o.surface_km2>0){
+      o.densite = o.population / o.surface_km2;
+    }
+    return o;
+  }
+  function findMappedCommune(city, cp){
+    const cityN = norm(city), cpN = norm(cp);
+    const baseRow = findRefRowFor(city, cp);
+    if(baseRow){
+      const m = mapCommuneRow(baseRow);
+      if(m && (m.insee || m.population || m.surface_km2)) return {row:baseRow, mapped:m};
+    }
+    for(const r of REF_ROWS){
+      const m = mapCommuneRow(r);
+      if(!m) continue;
+      if( (m.nom && norm(m.nom)===cityN) || (m.cp_list && m.cp_list.map(norm).includes(cpN)) ){
+        return {row:r, mapped:m};
+      }
+    }
+    return null;
+  }
+
+  /* ===== Auto calculs via référentiel ===== */
   function autoFromReferential(){
     const city=$("#city").value, cp=$("#cp").value, surfHab=getNum("#surf_hab"), year=getNum("#year"), dpe=getStr("#dpe");
     if(!city || city==="__other"){ append("#debug","[Auto] Ville vide ou manuelle."); return; }
@@ -482,6 +522,39 @@ document.addEventListener("DOMContentLoaded", function(){
     }
     $("#occ_phase1").value=occ1; $("#occ_phase2").value=occ2;
 
+    // ===== KPIs géo
+    const geoKPI = document.querySelector("#kpiGeo");
+    if(geoKPI) geoKPI.innerHTML = "";
+    const x = findMappedCommune(city, cp);
+    if(x && x.mapped){
+      const M = x.mapped;
+      if(!document.querySelector("#insee").value && M.insee){ document.querySelector("#insee").value = M.insee; }
+      const makeItem = (label, value, unit, hintBarPct=null)=>{
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `<h3>${label}</h3><div class="val">${value!=null && !isNaN(value) ? (unit==="hab" ? value.toLocaleString('fr-FR') : (unit==="km2" ? value.toLocaleString('fr-FR',{maximumFractionDigits:2}) : value.toLocaleString('fr-FR',{maximumFractionDigits:0})))+" "+(unit||"") : "—"}</div>`;
+        if(hintBarPct!=null){
+          const bar = document.createElement("div"); bar.className="bars";
+          bar.innerHTML = `<div class="progress"><i style="width:${Math.max(0,Math.min(100,hintBarPct))}%"></i></div>`;
+          div.appendChild(bar);
+        }
+        geoKPI.appendChild(div);
+      };
+      if(M.population>0) makeItem("Population (commune)", Math.round(M.population), "hab", Math.min(100, (M.population/100000)*100));
+      if(M.surface_km2>0) makeItem("Superficie", M.surface_km2, "km2");
+      if(M.densite>0) makeItem("Densité", Math.round(M.densite), "hab/km²", Math.min(100, (M.densite/10000)*100));
+
+      const info = document.querySelector("#city_info");
+      if(info){
+        const extra = [];
+        if(M.insee) extra.push(`<span class="badge">INSEE ${M.insee}</span>`);
+        if(M.population) extra.push(`<span class="badge">${M.population.toLocaleString('fr-FR')} hab</span>`);
+        if(M.surface_km2) extra.push(`<span class="badge">${M.surface_km2.toLocaleString('fr-FR',{maximumFractionDigits:2})} km²</span>`);
+        if(M.densite) extra.push(`<span class="badge">${Math.round(M.densite).toLocaleString('fr-FR')} hab/km²</span>`);
+        if(extra.length) info.insertAdjacentHTML("beforeend"," "+extra.join(" "));
+      }
+    }
+
     saveState();
   }
 
@@ -506,7 +579,7 @@ document.addEventListener("DOMContentLoaded", function(){
     return impPart * parts;
   }
 
-  /* ===== KPI render with progress bars ===== */
+  /* ===== KPIs à afficher ===== */
   const KPI_LIST = [
     ["mode_fiscal","Mode fiscal actif"],
     ["revenus_brut_m","Revenus bruts mensuels"],
@@ -514,17 +587,17 @@ document.addEventListener("DOMContentLoaded", function(){
     ["mensualite_banque","Mensualité banque (PMT)"],
     ["mensualite_sasu","Mensualité SASU (PMT)"],
     ["charges_mensuelles","Charges mensuelles (fixes+gestion+CAPEX+TEOM+autres/12)"],
-    ["coupon_phase1","Coupon investisseur (phase 1) – intérêts SASU (mensuel)"],
+    ["coupon_phase1","Coupon investisseur (phase 1)"],
     ["charges_tf_mois","Taxe foncière (mois)"],
     ["impots_cotisations_ann","Cotisations + IR (annuel)"],
     ["resultat_fiscal_lmp","Résultat fiscal LMP (annuel)"],
     ["caf_apres_impots_a","CAF après impôts (annuel)"],
     ["caf_apres_impots_m","CAF après impôts (mensuel)"],
     ["cashflow_m_ph1_occ1","Cash-flow net mensuel – Phase 1 (occ. auto)"],
-    ["cashflow_a_ph2_occ1","Cash-flow net annuel – Phase 2 (occ. auto)"],
-    ["cashflow_m_ph1_occ05","Cash-flow net mensuel – Phase 1 (occ. 50%)"],
-    ["cashflow_a_ph2_occ05","Cash-flow net annuel – Phase 2 (occ. 50%)"]
+    ["cashflow_a_ph2_occ1","Cash-flow net annuel – Phase 2 (occ. auto)"]
+    // (on a retiré les 2 KPIs “occ 50%”)
   ];
+
   function renderKPIs(obj){
     const root=$("#kpiList"); root.innerHTML="";
     const money=new Set(KPI_LIST.map(k=>k[0]).filter(k=>k!=="mode_fiscal"));
@@ -534,13 +607,11 @@ document.addEventListener("DOMContentLoaded", function(){
       const item=document.createElement("div");
       item.className="item";
       item.innerHTML=`<h3>${label}</h3><div class="val ${sign}">${(val==null)?"—":(isMoney?fmtEur(val):val)}</div>`;
-      // Barres pour quelques métriques clés
       if(key==="cashflow_m_ph1_occ1" || key==="caf_apres_impots_m" || key==="revenus_brut_m"){
         const bar=document.createElement("div"); bar.className="bars";
         bar.innerHTML=`<div class="progress"><i style="width:0%"></i></div>`;
         item.appendChild(bar);
         const i=bar.querySelector("i");
-        // normalisation simple
         const denom = key==="revenus_brut_m" ? Math.max(1, obj.revenus_brut_m) :
                       Math.max(1, Math.abs(obj.cashflow_m_ph1_occ1) + Math.abs(obj.charges_mensuelles));
         const pct = Math.min(100, Math.max(0, (Math.abs(val)/denom)*100));
@@ -549,25 +620,31 @@ document.addEventListener("DOMContentLoaded", function(){
       root.appendChild(item);
     };
     for(const [key,label] of KPI_LIST) add(key,label,obj[key]);
-    // Ajout d’un bloc “Occupations”
-    const occWrap=document.createElement("div");
-    occWrap.className="item";
-    const occ1=parseFloat($("#occ_phase1").value||"1"), occ2=parseFloat($("#occ_phase2").value||"1");
-    occWrap.innerHTML=`<h3>Occupation (auto)</h3>
+
+    // === Nouveau bloc : Seuil d’occupation pour CF >= 0
+    const pctText = (pct)=> isFinite(pct) ? (pct>100 ? "≥100 %" : pct.toFixed(0)+" %") : "—";
+    const be1 = (typeof obj.occ_break_even_ph1 === "number") ? obj.occ_break_even_ph1*100 : NaN;
+    const be2 = (typeof obj.occ_break_even_ph2 === "number") ? obj.occ_break_even_ph2*100 : NaN;
+
+    const wrap = document.createElement("div");
+    wrap.className = "item";
+    wrap.innerHTML = `<h3>Occ = % pour cash-flow positif</h3>
       <div class="inline" style="width:100%">
         <div style="flex:1">
           <div class="hint">Phase 1</div>
-          <div class="progress"><i style="width:${(occ1*100).toFixed(0)}%"></i></div>
+          <div class="val">${pctText(be1)}</div>
+          <div class="progress"><i style="width:${isFinite(be1)?Math.min(100,Math.max(0,be1)).toFixed(0):0}%"></i></div>
         </div>
         <div style="flex:1">
           <div class="hint">Phase 2</div>
-          <div class="progress"><i style="width:${(occ2*100).toFixed(0)}%"></i></div>
+          <div class="val">${pctText(be2)}</div>
+          <div class="progress"><i style="width:${isFinite(be2)?Math.min(100,Math.max(0,be2)).toFixed(0):0}%"></i></div>
         </div>
       </div>`;
-    root.appendChild(occWrap);
+    root.appendChild(wrap);
   }
 
-  /* ===== Compute ===== */
+  /* ===== Calcul principal ===== */
   function computeResults(){
     const surfHab=getNum("#surf_hab");
     const price=getNum("#price");
@@ -593,10 +670,12 @@ document.addEventListener("DOMContentLoaded", function(){
 
     const bankM=pmt(bankRate/12, Math.max(1,bankYears*12), bankAmount);
     const sasuM=pmt(sasuRate/12, Math.max(1,sasuYears*12), sasuAmount);
-    const mensualiteBanque = -bankM, mensualiteSASU = -sasuM;
+    const mensualiteBanque = -bankM;
+    const mensualiteSASU   = -sasuM;
     $("#bank_monthly").value = Math.round(mensualiteBanque);
     $("#sasu_monthly").value = Math.round(mensualiteSASU);
 
+    // Intérêts annuels (utiles fiscalité & Phase 1)
     const interetsBanque = Math.max(0, bankAmount * bankRate);
     const interetsSASU   = Math.max(0, sasuAmount * sasuRate);
 
@@ -637,11 +716,16 @@ document.addEventListener("DOMContentLoaded", function(){
     const cafA = loyersA - chargesA - impCotAn;
     const cafM = cafA/12;
 
+    // Fonctions cash-flow (Phase 1 : intérêts SASU; Phase 2 : PMT SASU)
     function net(occ,phase){
       const lOcc=loyersA*occ;
       const sasu = (phase===1)? interetsSASU : (mensualiteSASU*12);
       return lOcc - chargesA - (mensualiteBanque*12) - sasu - impCotAn;
     }
+
+    // Seuil d’occupation (break-even): résoudre net(occ,phase)=0
+    const occ_be_ph1 = (loyersA>0) ? ( (chargesA + (mensualiteBanque*12) + interetsSASU + impCotAn) / loyersA ) : NaN;
+    const occ_be_ph2 = (loyersA>0) ? ( (chargesA + (mensualiteBanque*12) + (mensualiteSASU*12) + impCotAn) / loyersA ) : NaN;
 
     const res={
       mode_fiscal:impLabel,
@@ -658,10 +742,26 @@ document.addEventListener("DOMContentLoaded", function(){
       caf_apres_impots_m:cafM,
       cashflow_m_ph1_occ1:net(occ1,1)/12,
       cashflow_a_ph2_occ1:net(occ2,2),
-      cashflow_m_ph1_occ05:net(0.5,1)/12,
-      cashflow_a_ph2_occ05:net(0.5,2)
+      occ_break_even_ph1: occ_be_ph1,
+      occ_break_even_ph2: occ_be_ph2
     };
-    const dbg={mode,NB_PARTS,COT_RATE,loyersA,gestionA,capexA,chargesA,interetsBanque,interetsSASU,amortTotal,resultatFiscalLMP,baseImp,baseIR,IR,cotSoc,cafA,cafM,ref:`REF: ${REF_ROWS.length} lignes`};
+
+    const dbg={mode,NB_PARTS,COT_RATE,loyersA,gestionA,capexA,chargesA,interetsBanque,interetsSASU,amortTotal,resultatFiscalLMP,baseImp,baseIR,IR,cotSoc,cafA,cafM,occ_be_ph1,occ_be_ph2,ref:`REF: ${REF_ROWS.length} lignes`};
+    try{
+      const city = document.querySelector("#city").value;
+      const cp   = document.querySelector("#cp").value;
+      const g = findMappedCommune(city, cp);
+      if(g && g.mapped){
+        dbg.geo = {
+          insee: g.mapped.insee || null,
+          population: isNaN(g.mapped.population)? null : g.mapped.population,
+          surface_km2: isNaN(g.mapped.surface_km2)? null : g.mapped.surface_km2,
+          densite: isNaN(g.mapped.densite)? null : g.mapped.densite,
+          lat: isNaN(g.mapped.lat)? null : g.mapped.lat,
+          lon: isNaN(g.mapped.lon)? null : g.mapped.lon
+        };
+      }
+    }catch(_e){}
     return {res,dbg};
   }
 
@@ -671,7 +771,7 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#debug").value=JSON.stringify(out.dbg,null,2);
   }
 
-  /* ===== Source loader (URL) ===== */
+  /* ===== Loader (URL / HTML/CSV/JSON) ===== */
   function looksLikeJSON(t){ t=String(t||"").trim(); return t[0]==="{"||t[0]==="["; }
   function isHTML(t){ const s=String(t||"").trim().slice(0,200).toLowerCase(); return s.includes("<!doctype html")||s.includes("<html"); }
   function parseHTMLTablesToRows(htmlText){
@@ -696,8 +796,7 @@ document.addEventListener("DOMContentLoaded", function(){
   }
   async function fetchAsText(url){ const res=await fetch(url,{mode:"cors"}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.text(); }
 
-  $("#btnLoadSource").addEventListener("click", async ()=>{
-    const url=getStr("#api_url"); if(!url){ alert("URL requise."); return; }
+  async function loadOneSource(url){
     try{
       logSrc("Chargement: "+url);
       const text=await fetchAsText(url); let rows=[];
@@ -707,22 +806,27 @@ document.addEventListener("DOMContentLoaded", function(){
       mergeIntoReferential(rows); logSrc(`Fusion totale: ${REF_ROWS.length} lignes`);
       autoFromReferential(); renderAndDebug();
     }catch(err){ logSrc("❌ "+(err && err.message ? err.message : err)); }
+  }
+
+  // Boutons Sources
+  $("#btnLoadSource").addEventListener("click", async ()=>{
+    const url=$("#api_url").value.trim(); if(!url){ alert("URL requise."); return; } await loadOneSource(url);
+  });
+  $("#btnLoadPreset").addEventListener("click", async ()=>{
+    const url=$("#preset_source").value; if(!url){ alert("Choisis un preset."); return; } await loadOneSource(url);
   });
   $("#btnClearSources").addEventListener("click",()=>{ localStorage.removeItem("immo_state_full"); REF_ROWS=[]; logSrc("Cache vidé et référentiel réinitialisé."); });
 
-  // Preload
-  (async function preload(){
-    const url="https://www.data.gouv.fr/api/1/datasets/r/df7a9765-2ac9-45be-905f-d2bc5dc9fc35";
-    try{
-      const t=await fetchAsText(url); let rows=[];
-      if(isHTML(t)){ rows=parseHTMLTablesToRows(t); logSrc(`Préchargé (HTML): ${rows.length} lignes`); }
-      else if(looksLikeJSON(t)){ const j=JSON.parse(t); rows=Array.isArray(j)?j:(Array.isArray(j.items)?j.items:[]); logSrc(`Préchargé (JSON): ${rows.length}`); }
-      else { const p=Papa.parse(t,{header:true,dynamicTyping:true,skipEmptyLines:true}); rows=p.data; logSrc(`Préchargé (CSV): ${p.data.length} lignes`); }
-      mergeIntoReferential(rows);
-    }catch(e){ logSrc("Préchargement KO: "+e.message); }
+  // Préchargement
+  const DEFAULT_SOURCES = [
+    "https://www.data.gouv.fr/api/1/datasets/r/df7a9765-2ac9-45be-905f-d2bc5dc9fc35",
+    "https://www.data.gouv.fr/api/1/datasets/r/f5df602b-3800-44d7-b2df-fa40a0350325"
+  ];
+  (async function preloadAll(){
+    for(const url of DEFAULT_SOURCES){ await loadOneSource(url); }
   })();
 
-  /* ===== Import CSV (files) ===== */
+  /* ===== Import CSV (fichiers) ===== */
   function parseCsvFileBrowser(file){
     return new Promise((resolve,reject)=>{
       Papa.parse(file, { header:true, dynamicTyping:true, skipEmptyLines:true,
@@ -752,9 +856,7 @@ document.addEventListener("DOMContentLoaded", function(){
   }
   const fileInput = $("#csv_files");
   const dropZone  = $("#drop_zone");
-  if(fileInput){
-    fileInput.addEventListener("change", (e)=>{ handleCsvFiles(e.target.files); e.target.value = ""; });
-  }
+  if(fileInput){ fileInput.addEventListener("change", (e)=>{ handleCsvFiles(e.target.files); e.target.value = ""; }); }
   if(dropZone){
     ["dragenter","dragover"].forEach(evt=>{
       dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropZone.classList.add("drag"); });
@@ -776,7 +878,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
   $("#calcBtn").addEventListener("click", ()=>{ autoFromReferential(); renderAndDebug(); });
   $("#saveBtn").addEventListener("click", ()=>{ saveState(); alert("Données sauvegardées (local)"); });
-  $("#resetBtn").addEventListener("click", ()=>{ localStorage.removeItem("immo_state_full"); location.reload(); });
+  $("#resetBtn").addEventListener("click", ()=>{ localStorage.removeItem("immo_state_full"); REF_ROWS=[]; location.reload(); });
   $$(".card input, .card select").forEach(el=> el.addEventListener("change", saveState));
 
   /* ===== Init ===== */
@@ -784,7 +886,7 @@ document.addEventListener("DOMContentLoaded", function(){
   loadState();
   if($("#city").value) onCityChange();
   const dbg=$("#debug");
-  if(dbg) dbg.value="UI améliorée, thème clair/sombre, KPI avec barres de progression, focus rings, ombres, et import CSV. Cliquez Recalculer pour mettre à jour.";
+  if(dbg) dbg.value="Résultats mis à jour : KPIs 50% retirés, ajout du seuil d’occupation pour CF positif (Phase 1 & 2).";
 });
 </script>
 </body>
