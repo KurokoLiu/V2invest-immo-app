@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Invest_IMMO • LMP / Simplifié + data.gouv (HTML) + Villes</title>
+<title>Invest_IMMO • LMP / Simplifié + data.gouv (HTML) + Villes + CP/INSEE auto</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 <style>
 :root{--bg:#0f1222;--fg:#f3f5ff;--muted:#aeb3d0;--card:#171a2e;--line:#252947;--accent:#6ea8fe;--accent2:#9c6efe;--ok:#3ddc84;--bad:#ff6b6b}
@@ -39,7 +39,7 @@ input[disabled]{opacity:.7}
 <body>
 <header>
   <h1>Invest_IMMO • Mode fiscal LMP / Simplifié</h1>
-  <span class="pill">HTML data.gouv + IR 2025 + CAPEX + Sélecteur de villes</span>
+  <span class="pill">HTML data.gouv + IR 2025 + CAPEX + Villes + CP/INSEE auto</span>
   <button class="btn" id="resetBtn">Réinitialiser</button>
 </header>
 
@@ -60,9 +60,21 @@ input[disabled]{opacity:.7}
         <select id="city"></select>
         <div id="city_info" class="hint" style="margin-top:6px"></div>
       </div>
-      <div class="col-3"><label>Code postal</label><input id="cp" placeholder="94340"></div>
-      <div class="col-3"><label>Adresse</label><input id="address" placeholder="3 rue Exemple"></div>
 
+      <div class="col-3">
+        <label>Code postal</label>
+        <input id="cp" list="cp_options" placeholder="94340">
+        <datalist id="cp_options"></datalist>
+      </div>
+
+      <div class="col-3">
+        <label>Code INSEE (auto)</label>
+        <input id="insee" disabled placeholder="—">
+      </div>
+
+      <div class="col-12"><div class="sep"></div></div>
+
+      <div class="col-4"><label>Adresse</label><input id="address" placeholder="3 rue Exemple"></div>
       <div class="col-3"><label>Prix d’achat FAI (€)</label><input id="price" type="number"></div>
       <div class="col-2"><label>Surface (m²)</label><input id="surf" type="number"></div>
       <div class="col-1"><label>DPE</label><input id="dpe" placeholder="A–G"></div>
@@ -169,6 +181,7 @@ document.addEventListener("DOMContentLoaded", function(){
   function saveState(){ const inputs=[].slice.call(document.querySelectorAll("input,select")).reduce((a,el)=>{a[el.id]=el.value;return a;},{}); localStorage.setItem("immo_state_full", JSON.stringify(inputs)); }
   function loadState(){ const raw=localStorage.getItem("immo_state_full"); if(!raw) return; const d=JSON.parse(raw); Object.keys(d).forEach(k=>{ const el=document.getElementById(k); if(el) el.value=d[k]; }); }
   function append(id,msg){ const el=$(id); if(!el) return; el.value+=(el.value?"\n":"")+msg; el.scrollTop=el.scrollHeight; }
+  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
   /* ===== Tabs ===== */
   $("#tabs").addEventListener("click", e=>{
@@ -225,25 +238,98 @@ document.addEventListener("DOMContentLoaded", function(){
     {dep:"Essonne",dep_code:"91",city:"Mennecy",transport:"RER D",mins:18,quality:6.5},
     {dep:"Val-d’Oise",dep_code:"95",city:"Cergy-Préfecture",transport:"RER A/J",mins:12,quality:7.5}
   ];
-  function qualityToOcc(q){ if(q>=9) return ["1.00","1.00"]; if(q>=8) return ["0.90","1.00"]; if(q>=7) return ["0.80","0.90"]; if(q>=6) return ["0.70","0.80"]; return ["0.50","0.70"]; }
+
+  /* Fallback CP/INSEE local (si l'API est KO) — un CP principal par ville */
+  const CP_INSEE_FALLBACK = {
+    "Joinville-le-Pont":"94340","Nogent-sur-Marne":"94130","Saint-Maur-des-Fossés":"94100",
+    "Champigny-sur-Marne":"94500","Sceaux":"92330","Bourg-la-Reine":"92340","Antony":"92160",
+    "Fontenay-aux-Roses":"92260","Saint-Germain-en-Laye":"78100","Le Vésinet":"78110",
+    "Houilles-Carrières-sur-Seine":"78800","Maisons-Laffitte":"78600","Chatou":"78400","Croissy-sur-Seine":"78290",
+    "Achères":"78260","Conflans-Sainte-Honorine":"78700","Saint-Rémy-lès-Chevreuse":"78470",
+    "Saint-Cyr-l’École":"78210","Viroflay":"78220","Versailles":"78000","Marly-le-Roi":"78160",
+    "Saint-Nom-la-Bretèche":"78860","Plaisir-Grignon":"78370","Beynes":"78650","Les Mureaux":"78130",
+    "Vernouillet-Verneuil":"78540","Meulan-en-Yvelines":"78250","Mantes-la-Jolie":"78200",
+    "Épône-Mézières":"78680","Aubergenville":"78410","Massy":"91300","Palaiseau":"91120",
+    "Gif-sur-Yvette":"91190","Orsay":"91400","Juvisy-sur-Orge":"91260","Savigny-sur-Orge":"91600",
+    "Épinay-sur-Orge":"91360","Sainte-Geneviève-des-Bois":"91700","Longjumeau":"91160",
+    "Brétigny-sur-Orge":"91220","Évry-Courcouronnes":"91000","Ris-Orangis":"91130",
+    "Corbeil-Essonnes":"91100","Mennecy":"91540","Cergy-Préfecture":"95000"
+  };
+
   function populateCitySelect(){
     const sel=$("#city"); sel.innerHTML="";
     const def=document.createElement("option"); def.value=""; def.textContent="— Sélectionner —"; sel.appendChild(def);
-    CITY_LIST.forEach(o=>{ const op=document.createElement("option"); op.value=o.city; op.textContent=`${o.city} (${o.dep_code})`; op.dataset.info=JSON.stringify(o); sel.appendChild(op); });
+    CITY_LIST.forEach(o=>{ const op=document.createElement("option"); op.value=o.city; op.textContent=`${o.city} (${o.dep_code})`; op.dataset.dep=o.dep_code; op.dataset.info=JSON.stringify(o); sel.appendChild(op); });
     const other=document.createElement("option"); other.value="__other"; other.textContent="Autre ville (saisie manuelle)"; sel.appendChild(other);
   }
-  function onCityChange(){
-    const sel=$("#city"); const info=$("#city_info");
-    const v=sel.value;
-    if(!v){ info.textContent=""; return; }
-    if(v==="__other"){ info.innerHTML="Saisissez la ville manuellement dans le champ Code postal + Adresse, puis continuez."; return; }
-    const op=sel.options[sel.selectedIndex]; const o=op && op.dataset.info? JSON.parse(op.dataset.info):null;
-    if(o){ info.innerHTML=`<span class="badge">${o.dep} (${o.dep_code})</span><span class="badge">${o.transport}</span><span class="badge">${o.mins} min</span><span class="badge">Qualité ${o.quality}/10</span>`;
-      // Fallback occupation (si pas de tension depuis la source)
-      const occ1=$("#occ_phase1").value, occ2=$("#occ_phase2").value;
-      if(!occ1 || !occ2){ const [a,b]=qualityToOcc(o.quality); $("#occ_phase1").value=a; $("#occ_phase2").value=b; }
+  function qualityToOcc(q){ if(q>=9) return ["1.00","1.00"]; if(q>=8) return ["0.90","1.00"]; if(q>=7) return ["0.80","0.90"]; if(q>=6) return ["0.70","0.80"]; return ["0.50","0.70"]; }
+
+  /* ===== API GEO.GOUV: CP + INSEE ===== */
+  async function fetchCommune(city, depCode){
+    const url = `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(city)}${depCode?`&codeDepartement=${encodeURIComponent(depCode)}`:""}&fields=codesPostaux,code,nom&boost=population&limit=10`;
+    const res = await fetch(url, {mode:"cors"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return await res.json();
+  }
+  function fillCpList(codes){
+    const dl=$("#cp_options"); dl.innerHTML="";
+    (codes||[]).forEach(cp=>{ const opt=document.createElement("option"); opt.value=cp; dl.appendChild(opt); });
+  }
+  async function setCpInseeFromCity(city, depCode){
+    const cpInput=$("#cp"), insee=$("#insee");
+    try{
+      const data = await fetchCommune(city, depCode);
+      if(!data || !data.length){ throw new Error("Commune introuvable"); }
+      // On prend la meilleure correspondance (1ère)
+      const best = data[0];
+      const cpList = best.codesPostaux && best.codesPostaux.length ? best.codesPostaux : [];
+      fillCpList(cpList);
+      if(cpList.length && (!cpInput.value || !cpList.includes(cpInput.value))){
+        cpInput.value = cpList[0];
+      }
+      insee.value = best.code || "";
+    }catch(e){
+      // Fallback local : un seul CP + INSEE vide
+      const fallbackCP = CP_INSEE_FALLBACK[city];
+      fillCpList(fallbackCP?[fallbackCP]:[]);
+      if(fallbackCP) cpInput.value = fallbackCP;
+      if(!insee.value) insee.value = "";
     }
   }
+  async function setInseeFromCityAndCp(city, depCode, cp){
+    // tente de verrouiller l'INSEE en croisant nom + CP
+    try{
+      const data = await fetchCommune(city, depCode);
+      if(!data || !data.length) return;
+      const match = data.find(c => (c.codesPostaux||[]).includes(cp)) || data[0];
+      $("#insee").value = match.code || $("#insee").value;
+    }catch(_e){}
+  }
+
+  async function onCityChange(){
+    const sel=$("#city"), info=$("#city_info"); const v=sel.value;
+    if(!v){ info.textContent=""; return; }
+    if(v==="__other"){ info.innerHTML="Saisissez la ville manuellement via l’adresse/CP."; return; }
+    const op=sel.options[sel.selectedIndex];
+    const o = op && op.dataset.info ? JSON.parse(op.dataset.info) : null;
+    if(o){
+      info.innerHTML=`<span class="badge">${o.dep} (${o.dep_code})</span><span class="badge">${o.transport}</span><span class="badge">${o.mins} min</span><span class="badge">Qualité ${o.quality}/10</span>`;
+      // Fallback occupation
+      if(!$("#occ_phase1").value || !$("#occ_phase2").value){
+        const [a,b]=qualityToOcc(o.quality); $("#occ_phase1").value=a; $("#occ_phase2").value=b;
+      }
+      await setCpInseeFromCity(o.city, o.dep_code);
+    }
+  }
+  let cpTypingTimer=null;
+  $("#cp").addEventListener("input", ()=>{
+    if(cpTypingTimer) clearTimeout(cpTypingTimer);
+    cpTypingTimer=setTimeout(async ()=>{
+      const sel=$("#city"); const v=sel.value; if(!v || v==="__other") return;
+      const dep = sel.options[sel.selectedIndex].dataset.dep;
+      await setInseeFromCityAndCp(v, dep, $("#cp").value.trim());
+    }, 350);
+  });
 
   /* ===== Référentiel source (fusion) ===== */
   let REF_ROWS = [];
@@ -287,8 +373,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
   /* ===== Auto calculs via référentiel ===== */
   function autoFromReferential(){
-    const city=getStr("#city"), cp=getStr("#cp"), surf=getNum("#surf"), year=getNum("#year"), dpe=getStr("#dpe");
-    if(!city){ append("#debug","[Auto] Ville vide."); return; }
+    const city=$("#city").value, cp=$("#cp").value, surf=getNum("#surf"), year=getNum("#year"), dpe=getStr("#dpe");
+    if(!city || city==="__other"){ append("#debug","[Auto] Ville vide ou manuelle."); return; }
     const row=findRefRowFor(city,cp);
 
     const tf_m2= row ? pickNumberFromRow(row,COL_HINTS.tf_m2) : null;
@@ -307,7 +393,7 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#mgmt_pct").value = (gest!=null? gest.toFixed(2) : "7.00");
     $("#capex_pct").value = (capex!=null? capex.toFixed(2) : capexPctFromDPEandAge(dpe,year).toFixed(2));
 
-    // Occupation depuis "tension" sinon fallback qualité ville sélectionnée
+    // Occupation depuis "tension" sinon fallback qualité
     let occ1=$("#occ_phase1").value||"0.90", occ2=$("#occ_phase2").value||"1.00";
     if(tension!=null){
       if(tension>=5){ occ1="1.00"; occ2="1.00"; }
@@ -317,7 +403,7 @@ document.addEventListener("DOMContentLoaded", function(){
       else { occ1="0.50"; occ2="0.70"; }
     } else {
       const found = CITY_LIST.find(o=> o.city.toLowerCase()===String(city).toLowerCase());
-      if(found){ [occ1,occ2]=qualityToOcc(found.quality); }
+      if(found){ const q=found.quality; const m= (q>=9)?["1.00","1.00"]:(q>=8)?["0.90","1.00"]:(q>=7)?["0.80","0.90"]:(q>=6)?["0.70","0.80"]:["0.50","0.70"]; occ1=m[0]; occ2=m[1]; }
     }
     $("#occ_phase1").value=occ1; $("#occ_phase2").value=occ2;
 
@@ -399,8 +485,9 @@ document.addEventListener("DOMContentLoaded", function(){
     const interetsSASU   = Math.max(0, sasuAmount * sasuRate);
 
     const RSASU_an = interetsSASU;
-    const loyersA=rentTotal*12;
-    const gestionA=rentTotal*mgmtPct*12, capexA=rentTotal*capexPct*12;
+    const rentTotalM = rentTotal;
+    const loyersA=rentTotalM*12;
+    const gestionA=rentTotalM*mgmtPct*12, capexA=rentTotalM*capexPct*12;
     const chargesA=(fixCosts*12)+tfAnnual+teomAnnual+otherAnnual+gestionA+capexA;
 
     // Fiscalité
@@ -442,7 +529,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
     const res={
       mode_fiscal:impLabel,
-      revenus_brut_m:rentTotal,
+      revenus_brut_m:rentTotalM,
       revenus_brut_a:loyersA,
       mensualite_banque:mensualiteBanque,
       mensualite_sasu:mensualiteSASU,
@@ -462,7 +549,7 @@ document.addEventListener("DOMContentLoaded", function(){
     return {res,dbg};
   }
 
-  /* ===== Source loader (HTML / CSV / JSON) ===== */
+  /* ===== Loader source data.gouv (HTML / CSV / JSON) ===== */
   function looksLikeJSON(t){ t=String(t||"").trim(); return t[0]==="{"||t[0]==="["; }
   function isHTML(t){ const s=String(t||"").trim().slice(0,200).toLowerCase(); return s.includes("<!doctype html")||s.includes("<html"); }
   function parseHTMLTablesToRows(htmlText){
@@ -509,6 +596,7 @@ document.addEventListener("DOMContentLoaded", function(){
   })();
 
   /* ===== Actions ===== */
+  $("#city").addEventListener("change", onCityChange);
   $("#calcBtn").addEventListener("click", ()=>{ autoFromReferential(); const out=computeResults(); renderKPIs(out.res); $("#debug").value=JSON.stringify(out.dbg,null,2); });
   $("#saveBtn").addEventListener("click", ()=>{ saveState(); alert("Données sauvegardées (local)"); });
   $("#resetBtn").addEventListener("click", ()=>{ localStorage.removeItem("immo_state_full"); location.reload(); });
@@ -516,10 +604,10 @@ document.addEventListener("DOMContentLoaded", function(){
 
   /* ===== Init ===== */
   populateCitySelect();
-  $("#city").addEventListener("change", onCityChange);
   loadState();
-  if(getStr("#city")) onCityChange();
-  const dbg=$("#debug"); if(dbg) dbg.value="1) Choisis une ville dans la liste • 2) Complète CP/surface • 3) Recalculer. La note de la ville sert de fallback pour l’occupation si la 'tension' n’est pas disponible.";
+  if($("#city").value) onCityChange();
+  const dbg=$("#debug");
+  if(dbg) dbg.value="1) Choisis une ville • 2) Le CP/INSEE se remplissent (API geo.api.gouv.fr) • 3) Recalculer. Si l’API échoue, on bascule sur un CP local par défaut.";
 });
 </script>
 </body>
