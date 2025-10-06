@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Invest_IMMO • Auto calculs + HTML data.gouv + COG 2025 intégré</title>
-<!-- Lib: CSV parser -->
+<title>Invest_IMMO • LMP / Simplifié + HTML data.gouv + IR 2025 + CAPEX</title>
+<!-- Lib -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 <style>
 :root{--bg:#0f1222;--fg:#f3f5ff;--muted:#aeb3d0;--card:#171a2e;--line:#252947;--accent:#6ea8fe;--accent2:#9c6efe;--ok:#3ddc84;--bad:#ff6b6b}
@@ -21,7 +21,7 @@ header h1{margin:0;font-size:18px}
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
 .col-12{grid-column:span 12}.col-8{grid-column:span 8}.col-6{grid-column:span 6}.col-4{grid-column:span 4}.col-3{grid-column:span 3}
 label{display:block;margin:0 0 6px;color:var(--muted);font-size:13px}
-input,textarea{width:100%;padding:10px;border:1px solid var(--line);background:#111428;color:var(--fg);border-radius:8px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);background:#111428;color:var(--fg);border-radius:8px}
 input[disabled]{opacity:.7}
 .btn{padding:10px 14px;border:1px solid var(--line);background:#111428;color:#fff;border-radius:10px;cursor:pointer}
 .btn.accent{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none}
@@ -32,22 +32,23 @@ input[disabled]{opacity:.7}
 .pos{color:var(--ok)}.neg{color:var(--bad)}
 .mono{font-family:ui-monospace,monospace;font-size:12px}
 .sep{height:1px;background:var(--line);margin:16px 0}
+.hint{color:var(--muted);font-size:12px}
 @media(max-width:900px){.col-8,.col-6,.col-4,.col-3{grid-column:span 12}.kpi .item{grid-column:span 12}}
 </style>
 </head>
 <body>
 <header>
-  <h1>Invest_IMMO • Auto calculs (HTML data.gouv) + COG 2025 intégré</h1>
-  <span class="pill">IR 2025 + CAPEX DPE×Âge</span>
+  <h1>Invest_IMMO • Mode fiscal LMP / Simplifié</h1>
+  <span class="pill">HTML data.gouv + IR 2025 + CAPEX</span>
   <button class="btn" id="resetBtn">Réinitialiser</button>
 </header>
 
 <div class="wrap">
   <nav class="tabs" id="tabs">
     <button class="tab-btn active" data-tab="saisie">Saisie</button>
+    <button class="tab-btn" data-tab="fiscal">Fiscalité</button>
     <button class="tab-btn" data-tab="param">Paramètres (auto)</button>
     <button class="tab-btn" data-tab="result">Résultats</button>
-    <button class="tab-btn" data-tab="refs">Référentiels</button>
     <button class="tab-btn" data-tab="sources">Sources (HTML / CSV / JSON)</button>
   </nav>
 
@@ -68,7 +69,7 @@ input[disabled]{opacity:.7}
       <div class="col-3"><label>Loyer/chambre (€)</label><input id="rent_per_room" type="number"></div>
       <div class="col-3"><label>Loyer total mensuel (€)</label><input id="rent_total" type="number" placeholder="Auto: nb × loyer/ch."></div>
 
-      <!-- Calculés -->
+      <!-- Auto -->
       <div class="col-3"><label>Charges mensuelles fixes (€) — auto</label><input id="fix_costs" type="number" disabled></div>
       <div class="col-3"><label>Taxe foncière annuelle (€) — auto</label><input id="tf_annual" type="number" disabled></div>
       <div class="col-3"><label>TEOM annuelle (€) — auto</label><input id="teom_annual" type="number" disabled></div>
@@ -93,17 +94,43 @@ input[disabled]{opacity:.7}
     </div>
   </section>
 
+  <!-- Fiscalité -->
+  <section class="card" data-panel="fiscal" hidden>
+    <h2>Régime fiscal & hypothèses</h2>
+    <div class="grid">
+      <div class="col-4">
+        <label>Régime</label>
+        <select id="tax_mode">
+          <option value="LMP" selected>LMP (avec amortissements)</option>
+          <option value="SIMPLE">Simplifié (cotis ~35% + IR barème)</option>
+        </select>
+      </div>
+      <div class="col-4"><label>Parts fiscales (IR)</label><input id="nb_parts" type="number" step="0.5" value="1"></div>
+      <div class="col-4"><label>Cotisations sociales (%)</label><input id="cot_rate" type="number" step="0.1" value="35"></div>
+
+      <div class="col-4"><label>Gestion locative (% loyers) — auto</label><input id="mgmt_pct" type="number" disabled></div>
+      <div class="col-4"><label>Provision CAPEX (% loyers) — auto</label><input id="capex_pct" type="number" disabled></div>
+      <div class="col-4"><label>Occupation Phase 1 — auto</label><input id="occ_phase1" disabled></div>
+      <div class="col-4"><label>Occupation Phase 2 — auto</label><input id="occ_phase2" disabled></div>
+    </div>
+
+    <div class="sep"></div>
+    <h3>Hypothèses Amortissements (LMP)</h3>
+    <p class="hint">Ces hypothèses n’affectent que le mode LMP. Ajuste si besoin.</p>
+    <div class="grid">
+      <div class="col-3"><label>% valeur bâtie (hors terrain)</label><input id="amort_bati_pct" type="number" step="1" value="85"></div>
+      <div class="col-3"><label>Durée amort. bâti (ans)</label><input id="amort_bati_years" type="number" value="30"></div>
+      <div class="col-3"><label>% mobilier</label><input id="amort_mob_pct" type="number" step="0.5" value="5"></div>
+      <div class="col-3"><label>Durée amort. mobilier (ans)</label><input id="amort_mob_years" type="number" value="7"></div>
+      <div class="col-3"><label>% frais de notaire</label><input id="amort_not_pct" type="number" step="0.5" value="2"></div>
+      <div class="col-3"><label>Durée amort. notaire (ans)</label><input id="amort_not_years" type="number" value="5"></div>
+    </div>
+  </section>
+
   <!-- Paramètres auto -->
   <section class="card" data-panel="param" hidden>
     <h2>Paramètres financiers (calculés)</h2>
-    <div class="grid">
-      <div class="col-3"><label>Taux d’imposition effectif (%) — auto</label><input id="tax_rate" type="number" disabled></div>
-      <div class="col-3"><label>Gestion locative (% loyers) — auto</label><input id="mgmt_pct" type="number" disabled></div>
-      <div class="col-3"><label>Provision CAPEX (% loyers) — auto</label><input id="capex_pct" type="number" disabled></div>
-      <div class="col-3"><label>Occupation Phase 1 — auto</label><input id="occ_phase1" disabled></div>
-      <div class="col-3"><label>Occupation Phase 2 — auto</label><input id="occ_phase2" disabled></div>
-    </div>
-    <p class="mono">Valeurs issues des règles/jeux de données fusionnés (Ville/CP, DPE, année, tension, etc.).</p>
+    <p class="hint">Issus des règles/jeux de données fusionnés (Ville/CP, DPE, année, tension).</p>
   </section>
 
   <!-- Résultats -->
@@ -111,24 +138,10 @@ input[disabled]{opacity:.7}
     <h2>Résultats</h2>
     <div class="kpi" id="kpiList"></div>
     <div class="sep"></div>
-    <textarea id="debug" rows="12" class="mono" style="width:100%" readonly></textarea>
+    <textarea id="debug" rows="14" class="mono" style="width:100%" readonly></textarea>
   </section>
 
-  <!-- Référentiels -->
-  <section class="card" data-panel="refs" hidden>
-    <h2>Référentiels (aperçu + COG)</h2>
-    <div class="grid">
-      <div class="col-12">
-        <textarea id="refDump" rows="12" class="mono" style="width:100%" readonly>Aucun référentiel chargé.</textarea>
-      </div>
-      <div class="col-12">
-        <h3 style="margin:8px 0">Résumé COG (appliqué automatiquement)</h3>
-        <textarea id="cogDump" rows="8" class="mono" style="width:100%" readonly></textarea>
-      </div>
-    </div>
-  </section>
-
-  <!-- Sources (HTML/CSV/JSON) -->
+  <!-- Sources -->
   <section class="card" data-panel="sources" hidden>
     <h2>Sources – Lien HTML direct (data.gouv) ou CSV/JSON</h2>
     <div class="grid">
@@ -156,7 +169,7 @@ document.addEventListener("DOMContentLoaded", function(){
   function pmt(r,n,p){ if(r===0) return -(p/n); return -(p*(r)*Math.pow(1+r,n))/(Math.pow(1+r,n)-1); }
   function getNum(sel){ const el=$(sel); const v=el?parseFloat(el.value):NaN; return isNaN(v)?0:v; }
   function getStr(sel){ const el=$(sel); return el?String(el.value).trim():""; }
-  function saveState(){ const inputs=[].slice.call(document.querySelectorAll("input")).reduce((a,el)=>{a[el.id]=el.value;return a;},{}); localStorage.setItem("immo_state_full", JSON.stringify(inputs)); }
+  function saveState(){ const inputs=[].slice.call(document.querySelectorAll("input,select")).reduce((a,el)=>{a[el.id]=el.value;return a;},{}); localStorage.setItem("immo_state_full", JSON.stringify(inputs)); }
   function loadState(){ const raw=localStorage.getItem("immo_state_full"); if(!raw) return; const d=JSON.parse(raw); Object.keys(d).forEach(k=>{ const el=document.getElementById(k); if(el) el.value=d[k]; }); }
   function append(id,msg){ const el=$(id); if(!el) return; el.value+=(el.value?"\n":"")+msg; el.scrollTop=el.scrollHeight; }
 
@@ -167,84 +180,10 @@ document.addEventListener("DOMContentLoaded", function(){
     $$("[data-panel]").forEach(p=> p.hidden = (p.dataset.panel!==b.dataset.tab));
   });
 
-  /* ===== COG 2025 intégré (tables de correspondance) ===== */
-  const COG_TYPES_COMMUNE = {
-    "COM":"Commune",
-    "COMA":"Commune associée",
-    "COMD":"Commune déléguée",
-    "ARM":"Arrondissement municipal"
-  };
-  const COG_TYPES_NOM = {
-    // clés indicatives — utilisées si une colonne "type de nom" apparaît
-    "1":"Nom sans article", "2":"Nom avec article élidé", "3":"Nom avec article séparé", "4":"Nom pluriel"
-  };
-  const COG_TYPES_EVENEMENT = {
-    "10":"Changement de nom",
-    "20":"Création",
-    "21":"Rétablissement",
-    "30":"Suppression",
-    "31":"Fusion simple",
-    "32":"Création de commune nouvelle",
-    "33":"Fusion association",
-    "34":"Transformation de fusion association",
-    "35":"Suppression de commune déléguée",
-    "41":"Changement de code (département)",
-    "50":"Changement de code (chef-lieu)",
-    "70":"Transformation en commune déléguée",
-    "71":"Rétablissement de commune déléguée"
-  };
-  const COG_TYPES_CANTON = {"C":"Canton","V":"Canton-ville","N":"Canton fictif"};
-  const COG_ZONAGE_OUTREMER = {"COM":"Commune","DIS":"District","CIR":"Circonscription territoriale","CPT":"La Passion–Clipperton","CDM":"Île des Faisans"};
-
-  function cogAnnotate(row){
-    // Ajoute des libellés COG si des codes sont présents dans la ligne HTML importée
-    const keys = Object.keys(row);
-    const valFor = (aliases)=> {
-      const H = keys.map(norm);
-      for (let a of aliases){ const i = H.indexOf(norm(a)); if(i>=0) return row[keys[i]]; }
-      return null;
-    };
-    const out = {};
-
-    const typeCommune = String(valFor(["type de commune","type_commune","type com","nature commune","type"])) || "";
-    if (typeCommune && COG_TYPES_COMMUNE[typeCommune]) out.__cog_type_commune = COG_TYPES_COMMUNE[typeCommune];
-
-    const evt = String(valFor(["type d’événement","type evenement","evenement","événement","event code"])) || "";
-    if (evt && COG_TYPES_EVENEMENT[evt]) out.__cog_type_evenement = COG_TYPES_EVENEMENT[evt];
-
-    const canton = String(valFor(["type de canton","type_canton","canton type"])) || "";
-    if (canton && COG_TYPES_CANTON[canton]) out.__cog_type_canton = COG_TYPES_CANTON[canton];
-
-    const zon = String(valFor(["nature de zonage","nature zonage","zonage","om nature"])) || "";
-    if (zon && COG_ZONAGE_OUTREMER[zon]) out.__cog_zonage = COG_ZONAGE_OUTREMER[zon];
-
-    return out;
-  }
-
-  function cogDescribeCounts(rows){
-    // Petit résumé utile dans l’onglet Référentiels
-    const counts = {type_commune:{}, evenement:{}, canton:{}, zonage:{}};
-    rows.forEach(r=>{
-      if(r.__cog_type_commune) counts.type_commune[r.__cog_type_commune]=(counts.type_commune[r.__cog_type_commune]||0)+1;
-      if(r.__cog_type_evenement) counts.evenement[r.__cog_type_evenement]=(counts.evenement[r.__cog_type_evenement]||0)+1;
-      if(r.__cog_type_canton) counts.canton[r.__cog_type_canton]=(counts.canton[r.__cog_type_canton]||0)+1;
-      if(r.__cog_zonage) counts.zonage[r.__cog_zonage]=(counts.zonage[r.__cog_zonage]||0)+1;
-    });
-    const lines=[];
-    function block(title,obj){ lines.push("[" + title + "]"); Object.keys(obj).forEach(k=> lines.push("- "+k+": "+obj[k])); if(!Object.keys(obj).length) lines.push("- (aucun)"); lines.push(""); }
-    block("Type de commune", counts.type_commune);
-    block("Type d’événement", counts.evenement);
-    block("Type de canton", counts.canton);
-    block("Zonage outre-mer", counts.zonage);
-    return lines.join("\n");
-  }
-
   /* ===== Référentiel fusionné ===== */
-  let REF_ROWS = []; // lignes venant de HTML/API
-  function describeRef(){
-    const txt = REF_ROWS.length ? `Référentiel total: ${REF_ROWS.length} lignes.\n`+REF_ROWS.slice(0,8).map(r=>JSON.stringify(r)).join("\n") : "Aucun référentiel.";
-    const out=$("#refDump"); if(out) out.value=txt;
-    const c=$("#cogDump"); if(c) c.value = cogDescribeCounts(REF_ROWS);
+  let REF_ROWS = [];
+  function describeRefShort(){
+    return REF_ROWS.length ? `REF: ${REF_ROWS.length} lignes (source HTML/CSV/JSON).` : "Aucun référentiel chargé.";
   }
 
   /* ===== Heuristiques colonnes ===== */
@@ -277,9 +216,6 @@ document.addEventListener("DOMContentLoaded", function(){
   function normalizeRow(row){
     const out={};
     for(const k in row){ if(!Object.prototype.hasOwnProperty.call(row,k)) continue; out[k]=row[k]; out["__"+norm(k)]=row[k]; }
-    // Ajout des libellés COG quand possible
-    const cog = cogAnnotate(row);
-    Object.assign(out, cog);
     return out;
   }
   function mergeIntoReferential(rows, sourceLabel){
@@ -289,25 +225,21 @@ document.addEventListener("DOMContentLoaded", function(){
       flat.__sheet = sourceLabel || flat.__sheet || "API/HTML";
       REF_ROWS.push(flat); added++;
     }
-    describeRef(); return added;
+    return added;
   }
   function findRefRowFor(city,cp){
     if(!REF_ROWS.length) return null;
     const cityN=norm(city), cpN=norm(cp);
-    // priorité CP exact
     for(const r of REF_ROWS){
-      const keys=Object.keys(r);
-      for(const k of keys){
+      for(const k of Object.keys(r)){
         if(CP_KEYS.map(norm).indexOf(norm(k))>=0){
           const v=norm(String(r[k]||""));
           if(cpN && v===cpN) return r;
         }
       }
     }
-    // fallback ville
     for(const r2 of REF_ROWS){
-      const keys2=Object.keys(r2);
-      for(const k2 of keys2){
+      for(const k2 of Object.keys(r2)){
         if(CITY_KEYS.map(norm).indexOf(norm(k2))>=0){
           const v2=norm(String(r2[k2]||""));
           if(cityN && v2===cityN) return r2;
@@ -336,7 +268,7 @@ document.addEventListener("DOMContentLoaded", function(){
     return row[ageBucket];
   }
 
-  /* ===== Auto calculs (CP/DPE/Année + réf) ===== */
+  /* ===== Auto calculs via référentiel ===== */
   function autoFromReferential(){
     const city=getStr("#city"), cp=getStr("#cp"), surf=getNum("#surf"), year=getNum("#year"), dpe=getStr("#dpe");
     const row=findRefRowFor(city,cp);
@@ -358,7 +290,6 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#mgmt_pct").value = (gest!=null? gest.toFixed(2) : "7.00");
     $("#capex_pct").value = (capex!=null? capex.toFixed(2) : capexPctFromDPEandAge(dpe,year).toFixed(2));
 
-    // Occupation à partir de "tension" si dispo
     let occ1="0.90", occ2="1.00";
     if(tension!=null){
       if(tension>=5){ occ1="1.00"; occ2="1.00"; }
@@ -384,7 +315,7 @@ document.addEventListener("DOMContentLoaded", function(){
   ];
   function frenchIR2025(baseImposableAnnuel, parts){
     parts = Math.max(1, parts||1);
-    const qp = baseImposableAnnuel / parts;  // revenu / part
+    const qp = baseImposableAnnuel / parts;
     let impPart = 0, prev = 0;
     for(let i=0;i<IR2025_THRESHOLDS.length;i++){
       const top = IR2025_THRESHOLDS[i].upTo;
@@ -397,80 +328,114 @@ document.addEventListener("DOMContentLoaded", function(){
     return impPart * parts;
   }
 
-  /* ===== Résultats (modèle robuste) ===== */
+  /* ===== Résultats ===== */
   const KPI_LIST = [
-    ["coupon_phase1","Coupon investisseur (phase 1) – intérêts SASU (mensuel)"],
-    ["coupon_phase2","Coupon investisseur (phase 2) – mensualité SASU (PMT)"],
-    ["charges_tf_mois","Charges + TF / mois (part TF)"],
+    ["mode_fiscal","Mode fiscal actif"],
     ["revenus_brut_m","Revenus bruts mensuels"],
     ["revenus_brut_a","Revenus bruts annuels"],
     ["mensualite_banque","Mensualité banque (PMT)"],
     ["mensualite_sasu","Mensualité SASU (PMT)"],
     ["charges_mensuelles","Charges mensuelles (fixes+gestion+CAPEX+TEOM+autres/12)"],
+    ["coupon_phase1","Coupon investisseur (phase 1) – intérêts SASU (mensuel)"],
+    ["charges_tf_mois","Taxe foncière (mois)"],
+    ["impots_cotisations_ann","Cotisations + IR (annuel)"],
     ["cashflow_m_ph1_occ1","Cash-flow net mensuel – Phase 1 (occ. auto)"],
     ["cashflow_a_ph2_occ1","Cash-flow net annuel – Phase 2 (occ. auto)"],
     ["cashflow_m_ph1_occ05","Cash-flow net mensuel – Phase 1 (occ. 50%)"],
     ["cashflow_a_ph2_occ05","Cash-flow net annuel – Phase 2 (occ. 50%)"]
   ];
+
   function computeResults(){
     const bankAmount=getNum("#bank_amount"), bankRate=getNum("#bank_rate")/100, bankYears=getNum("#bank_years");
     const sasuAmount=getNum("#sasu_amount"), sasuRate=getNum("#sasu_rate")/100, sasuYears=getNum("#sasu_years");
     const rooms=getNum("#rooms"), rpr=getNum("#rent_per_room"); let rentTotal=getNum("#rent_total"); if(!rentTotal && rooms && rpr){ rentTotal=rooms*rpr; $("#rent_total").value=rentTotal; }
-
     const occ1=parseFloat($("#occ_phase1").value||"1"), occ2=parseFloat($("#occ_phase2").value||"1");
     const fixCosts=getNum("#fix_costs"), tfAnnual=getNum("#tf_annual"), teomAnnual=getNum("#teom_annual"), otherAnnual=getNum("#other_annual");
     const mgmtPct=getNum("#mgmt_pct")/100, capexPct=getNum("#capex_pct")/100;
+    const mode = getStr("#tax_mode") || "LMP";
+    const NB_PARTS = Math.max(1, getNum("#nb_parts")||1);
+    const COT_RATE = Math.max(0, getNum("#cot_rate")||35)/100;
 
     const bankM=pmt(bankRate/12, bankYears*12, bankAmount);
     const sasuM=pmt(sasuRate/12, sasuYears*12, sasuAmount);
     const mensualiteBanque=-bankM, mensualiteSASU=-sasuM;
 
-    const RSASU_an = sasuAmount*sasuRate; // intérêts annuels phase 1 (approx)
+    const RSASU_an = sasuAmount*sasuRate; // intérêts annuels (phase 1)
     const loyersA=rentTotal*12;
     const gestionA=rentTotal*mgmtPct*12, capexA=rentTotal*capexPct*12;
     const chargesA=(fixCosts*12)+tfAnnual+teomAnnual+otherAnnual+gestionA+capexA;
 
-    // Impôts + cotisations
-    const baseImp = Math.max(0, loyersA - chargesA);
-    const cotSoc = baseImp * 0.35;
-    const NB_PARTS = 1;
-    const baseIR = Math.max(0, baseImp - cotSoc);
-    const IR = frenchIR2025(baseIR, NB_PARTS);
-    const tauxEffAff = ((cotSoc + IR) / Math.max(1, loyersA * occ2)) * 100;
-    $("#tax_rate").value = tauxEffAff.toFixed(1);
+    /* ---- Fiscalité ---- */
+    let baseImp, cotSoc, IR, baseIR, impLabel=mode;
+    if(mode==="LMP"){
+      // Amortissements
+      const price = getNum("#price");
+      const batiPct = Math.max(0, getNum("#amort_bati_pct")/100); const batiYears=Math.max(1,getNum("#amort_bati_years"));
+      const mobPct  = Math.max(0, getNum("#amort_mob_pct")/100);  const mobYears =Math.max(1,getNum("#amort_mob_years"));
+      const notPct  = Math.max(0, getNum("#amort_not_pct")/100);  const notYears =Math.max(1,getNum("#amort_not_years"));
 
+      const amortBat = (price * batiPct) / batiYears;
+      const amortMob = (price * mobPct)  / mobYears;
+      const amortNot = (price * notPct)  / notYears;
+      const amortTotal = amortBat + amortMob + amortNot;
+
+      // intérêts annuels
+      const interetsBanque = Math.max(0, (bankAmount * bankRate));
+      const interetsSASU   = Math.max(0, (sasuAmount * sasuRate));
+
+      // Résultat fiscal LMP
+      baseImp = Math.max(0, loyersA - chargesA - amortTotal - interetsBanque - interetsSASU);
+      cotSoc = baseImp * COT_RATE;
+      baseIR = Math.max(0, baseImp - cotSoc);
+      IR = frenchIR2025(baseIR, NB_PARTS);
+      impLabel = `LMP (amort: ${Math.round(amortTotal).toLocaleString('fr-FR')} €/an)`;
+    } else {
+      // Simplifié (sans amortissement, cotis sur base loyer - charges)
+      baseImp = Math.max(0, loyersA - chargesA);
+      cotSoc = baseImp * COT_RATE;
+      baseIR = Math.max(0, baseImp - cotSoc);
+      IR = frenchIR2025(baseIR, NB_PARTS);
+      impLabel = "Simplifié";
+    }
+    const impCotAn = cotSoc + IR;
+
+    /* ---- Cashflows ---- */
     function net(occ,phase){
       const lOcc=loyersA*occ;
       const sasu = (phase===1)? RSASU_an : (mensualiteSASU*12);
-      return lOcc - chargesA - (mensualiteBanque*12) - sasu - (cotSoc+IR);
+      return lOcc - chargesA - (mensualiteBanque*12) - sasu - impCotAn;
     }
 
     const res = {
+      mode_fiscal: impLabel,
       revenus_brut_m: rentTotal,
       revenus_brut_a: loyersA,
       mensualite_banque: mensualiteBanque,
       mensualite_sasu: mensualiteSASU,
       charges_mensuelles: (chargesA/12),
       coupon_phase1: RSASU_an/12,
-      coupon_phase2: mensualiteSASU,
       charges_tf_mois: (tfAnnual/12),
+      impots_cotisations_ann: impCotAn,
       cashflow_m_ph1_occ1: net(occ1,1)/12,
       cashflow_a_ph2_occ1: net(occ2,2),
       cashflow_m_ph1_occ05: net(0.5,1)/12,
       cashflow_a_ph2_occ05: net(0.5,2)
     };
-    const dbg = {loyersA,chargesA,gestionA,capexA,cotSoc,IR,tauxEffAff,baseIR,baseImp};
+    const dbg = {mode,NB_PARTS,COT_RATE,baseImp,baseIR,IR,cotSoc,loyersA,chargesA,gestionA,capexA,RSASU_an,ref:describeRefShort()};
     return {res,dbg};
   }
+
   function renderKPIs(obj){
     const root=$("#kpiList"); root.innerHTML="";
-    const money=new Set(KPI_LIST.map(x=>x[0]));
+    const moneyKeys=new Set(["revenus_brut_m","revenus_brut_a","mensualite_banque","mensualite_sasu","charges_mensuelles","coupon_phase1","charges_tf_mois","impots_cotisations_ann","cashflow_m_ph1_occ1","cashflow_a_ph2_occ1","cashflow_m_ph1_occ05","cashflow_a_ph2_occ05"]);
     for(let i=0;i<KPI_LIST.length;i++){
-      const key=KPI_LIST[i][0], label=KPI_LIST[i][1], v=obj[key];
-      const sign=(typeof v==="number" && (key.indexOf("cashflow")===0 || key.indexOf("mensualite")===0 || key.indexOf("coupon")===0 || key.indexOf("charges")===0))?(v>=0?"pos":"neg"):"";
+      const [key,label]=KPI_LIST[i];
+      const v=obj[key];
+      const isMoney=moneyKeys.has(key);
+      const sign=(typeof v==="number" && (key.includes("cashflow")||key.includes("mensualite")||key.includes("charges")||key.includes("coupon")))?(v>=0?"pos":"neg"):"";
       const el=document.createElement("div");
       el.className="item";
-      el.innerHTML=`<h3>${label}</h3><div class="val ${sign}">${money.has(key)?fmtEur(v):(typeof v==="number"?v.toLocaleString('fr-FR'):"—")}</div>`;
+      el.innerHTML=`<h3>${label}</h3><div class="val ${sign}">${(isMoney?fmtEur(v):(v??"—"))}</div>`;
       root.appendChild(el);
     }
   }
@@ -479,7 +444,6 @@ document.addEventListener("DOMContentLoaded", function(){
   const SRC_CACHE_KEY="immo_api_sources_v1";
   function looksLikeJSON(t){ t=String(t||"").trim(); return t[0]==="{"||t[0]==="["; }
   function isHTML(t){ const s=String(t||"").trim().slice(0,200).toLowerCase(); return s.includes("<!doctype html")||s.includes("<html"); }
-
   function parseHTMLTablesToRows(htmlText){
     const parser=new DOMParser();
     const doc=parser.parseFromString(htmlText,"text/html");
@@ -488,36 +452,25 @@ document.addEventListener("DOMContentLoaded", function(){
     tables.forEach(tbl=>{
       const trs=[].slice.call(tbl.querySelectorAll("tr"));
       if(!trs.length) return;
-      // détecter entête
-      let headers=[];
-      const ths=trs[0].querySelectorAll("th,td");
+      let headers=[]; const ths=trs[0].querySelectorAll("th,td");
       if(ths.length>=2){
         headers=[].slice.call(ths).map(th=>th.textContent.trim());
         for(let i=1;i<trs.length;i++){
           const cells=[].slice.call(trs[i].querySelectorAll("td,th"));
           if(!cells.length) continue;
-          const obj={};
-          cells.forEach((c,idx)=>{ obj[headers[idx]||("col_"+idx)] = c.textContent.trim(); });
+          const obj={}; cells.forEach((c,idx)=>{ obj[headers[idx]||("col_"+idx)] = c.textContent.trim(); });
           rows.push(obj);
         }
       } else {
-        // pas d'entête fiable → clés col_*
-        trs.forEach((tr)=>{
-          const cells=[].slice.call(tr.querySelectorAll("td,th"));
-          if(!cells.length) return;
-          const obj={};
-          cells.forEach((c,idx)=>{ obj["col_"+idx]=c.textContent.trim(); });
-          rows.push(obj);
+        trs.forEach(tr=>{
+          const cells=[].slice.call(tr.querySelectorAll("td,th")); if(!cells.length) return;
+          const obj={}; cells.forEach((c,idx)=>{ obj["col_"+idx]=c.textContent.trim(); }); rows.push(obj);
         });
       }
     });
     return rows;
   }
-
-  async function fetchAsText(url){
-    const res=await fetch(url,{mode:"cors"}); if(!res.ok) throw new Error("HTTP "+res.status);
-    return await res.text();
-  }
+  async function fetchAsText(url){ const res=await fetch(url,{mode:"cors"}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.text(); }
 
   $("#btnLoadSource").addEventListener("click", async ()=>{
     const url=getStr("#api_url"); if(!url){ alert("URL requise."); return; }
@@ -525,16 +478,9 @@ document.addEventListener("DOMContentLoaded", function(){
       append("#sources_log","Chargement: "+url);
       const text=await fetchAsText(url);
       let rows=[];
-      if(isHTML(text)){
-        rows=parseHTMLTablesToRows(text);
-        append("#sources_log",`→ HTML détecté: ${rows.length} lignes extraites des tableaux`);
-      } else if(looksLikeJSON(text)){
-        const json=JSON.parse(text); rows=Array.isArray(json)?json:(Array.isArray(json.items)?json.items:[]);
-        append("#sources_log",`→ JSON: ${rows.length} éléments`);
-      } else {
-        const parsed=Papa.parse(text,{header:true,dynamicTyping:true,skipEmptyLines:true});
-        rows=parsed.data; append("#sources_log",`→ CSV: ${rows.length} lignes`);
-      }
+      if(isHTML(text)){ rows=parseHTMLTablesToRows(text); append("#sources_log",`→ HTML détecté: ${rows.length} lignes extraites`); }
+      else if(looksLikeJSON(text)){ const json=JSON.parse(text); rows=Array.isArray(json)?json:(Array.isArray(json.items)?json.items:[]); append("#sources_log",`→ JSON: ${rows.length}`); }
+      else { const parsed=Papa.parse(text,{header:true,dynamicTyping:true,skipEmptyLines:true}); rows=parsed.data; append("#sources_log",`→ CSV: ${rows.length}`); }
       const added=mergeIntoReferential(rows,"API/HTML"); append("#sources_log",`Fusion: +${added}, total=${REF_ROWS.length}`);
       // cache URL
       let cache=JSON.parse(localStorage.getItem(SRC_CACHE_KEY)||"[]"); if(cache.indexOf(url)<0){ cache.push(url); localStorage.setItem(SRC_CACHE_KEY, JSON.stringify(cache)); }
@@ -544,7 +490,7 @@ document.addEventListener("DOMContentLoaded", function(){
   });
   $("#btnClearSources").addEventListener("click",()=>{ localStorage.removeItem(SRC_CACHE_KEY); append("#sources_log","Cache vidé."); });
 
-  // Préchargement automatique de TON lien HTML (data.gouv)
+  // Préchargement de TON lien
   (async function preload(){
     const url="https://www.data.gouv.fr/api/1/datasets/r/df7a9765-2ac9-45be-905f-d2bc5dc9fc35";
     try{
@@ -554,7 +500,6 @@ document.addEventListener("DOMContentLoaded", function(){
       else if(looksLikeJSON(t)){ const j=JSON.parse(t); rows=Array.isArray(j)?j:(Array.isArray(j.items)?j.items:[]); append("#sources_log",`Préchargé (JSON): ${rows.length}`); }
       else { const p=Papa.parse(t,{header:true,dynamicTyping:true,skipEmptyLines:true}); rows=p.data; append("#sources_log",`Préchargé (CSV): ${rows.length}`); }
       mergeIntoReferential(rows,"API/HTML");
-      describeRef();
     }catch(e){ append("#sources_log","Préchargement KO: "+e.message); }
   })();
 
@@ -562,13 +507,12 @@ document.addEventListener("DOMContentLoaded", function(){
   $("#calcBtn").addEventListener("click", ()=>{ autoFromReferential(); const out=computeResults(); renderKPIs(out.res); $("#debug").value=JSON.stringify(out.dbg,null,2); });
   $("#saveBtn").addEventListener("click", ()=>{ saveState(); alert("Données sauvegardées (local)"); });
   $("#resetBtn").addEventListener("click", ()=>{ localStorage.removeItem("immo_state_full"); location.reload(); });
-  $$(".card input").forEach(el=> el.addEventListener("change", saveState));
+  $$(".card input, .card select").forEach(el=> el.addEventListener("change", saveState));
 
   /* ===== Init ===== */
   loadState();
-  describeRef();
-  renderKPIs({});
-  const dbg=$("#debug"); if(dbg) dbg.value="Saisis Ville/CP/Surface puis clique Recalculer. La source HTML est préchargée et parsée. Les codes COG sont reconnus automatiquement.";
+  const dbg=$("#debug");
+  if(dbg) dbg.value="Saisis Ville/CP/Surface puis clique Recalculer. Le mode LMP utilise des amortissements paramétrables. La source HTML est préchargée.";
 });
 </script>
 </body>
