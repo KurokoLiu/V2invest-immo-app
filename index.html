@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Invest_IMMO – Import Excel auto (multi-feuilles)</title>
+<title>Invest_IMMO – Auto-formules + Sources API + Import COG (Insee)</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
   :root{
     --bg:#0f1222; --fg:#f3f5ff; --muted:#aeb3d0; --card:#171a2e; --accent:#6ea8fe; --accent2:#9c6efe;
@@ -15,187 +16,176 @@
   header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
   header h1{font-size:18px;margin:0}
   .pill{padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
-  .wrap{max-width:1100px;margin:24px auto;padding:0 16px 40px}
+  .wrap{max-width:1200px;margin:24px auto;padding:0 16px 40px}
   .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
   .tab-btn{padding:10px 14px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;cursor:pointer}
   .tab-btn.active{outline:2px solid var(--accent);color:#fff}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
   .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
-  .col-12{grid-column:span 12} .col-6{grid-column:span 6} .col-4{grid-column:span 4} .col-3{grid-column:span 3}
+  .col-12{grid-column:span 12} .col-8{grid-column:span 8} .col-6{grid-column:span 6} .col-4{grid-column:span 4} .col-3{grid-column:span 3}
   label{display:block;margin:0 0 6px;color:var(--muted);font-size:13px}
   input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);background:#111428;color:var(--fg);border-radius:8px}
-  input::placeholder{color:#6d7394}
+  input[disabled],select[disabled]{opacity:.7}
   .hint{color:var(--muted);font-size:12px}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .btn{padding:10px 14px;border:1px solid var(--line);background:#111428;color:#fff;border-radius:10px;cursor:pointer}
   .btn.accent{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none}
-  .btn.ghost{background:transparent}
   .kpi{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
   .kpi .item{grid-column:span 6;background:#111428;border:1px solid var(--line);border-radius:12px;padding:14px}
   .kpi h3{margin:0 0 6px;font-size:14px;color:var(--muted)}
   .val{font-size:20px;font-weight:700}
   .pos{color:var(--ok)} .neg{color:var(--bad)}
-  .foot{margin-top:12px;color:var(--muted);font-size:12px}
-  .readonly{opacity:.9;user-select:text}
-  .sticky-actions{position:sticky;bottom:0;padding:12px;background:linear-gradient(180deg,rgba(15,18,34,0),rgba(15,18,34,.9) 30%,rgba(15,18,34,1) 60%);display:flex;gap:10px;justify-content:flex-end}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace; font-size:12px}
   .sep{height:1px;background:var(--line);margin:16px 0}
-  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px}
-  @media (max-width:900px){ .col-6{grid-column:span 12} .col-4{grid-column:span 12} .col-3{grid-column:span 6} .kpi .item{grid-column:span 12}}
+  @media (max-width:900px){ .col-8,.col-6,.col-4,.col-3{grid-column:span 12} .kpi .item{grid-column:span 12}}
 </style>
 </head>
 <body>
 <header>
-  <h1>Invest_IMMO • Import auto depuis Excel</h1>
-  <span class="pill">Sauvegarde locale</span>
-  <span class="pill">Calculs en direct</span>
-  <button class="btn" id="importXlsBtn">Importer ton Excel</button>
-  <input type="file" id="xlsFile" accept=".xlsx,.xls" hidden />
-  <button class="btn ghost" id="resetBtn">Réinitialiser</button>
+  <h1>Invest_IMMO • Auto calculs (CP) + Référentiels + COG</h1>
+  <span class="pill">Import Excel</span>
+  <span class="pill">Sources API</span>
+  <span class="pill">COG (Insee)</span>
+  <button class="btn" id="resetBtn">Réinitialiser</button>
 </header>
 
 <div class="wrap">
   <nav class="tabs" id="tabs">
-    <button class="tab-btn active" data-tab="param">Paramètres financiers</button>
-    <button class="tab-btn" data-tab="saisie">Saisie (bien)</button>
+    <button class="tab-btn active" data-tab="saisie">Saisie (bien)</button>
+    <button class="tab-btn" data-tab="param">Paramètres (auto)</button>
     <button class="tab-btn" data-tab="result">Résultats</button>
-    <button class="tab-btn" data-tab="refs">Référentiels (affichage)</button>
+    <button class="tab-btn" data-tab="refs">Référentiels</button>
+    <button class="tab-btn" data-tab="sources">Sources (API)</button>
+    <button class="tab-btn" data-tab="cog">COG (Insee)</button>
   </nav>
 
-  <!-- Paramètres -->
-  <section class="card" data-panel="param">
-    <h2 style="margin-top:0">Paramètres financiers</h2>
-    <div class="grid">
-      <div class="col-6">
-        <label>Montant prêt banque (€)</label>
-        <input type="number" step="100" id="bank_amount" placeholder="ex. 550000" />
-      </div>
-      <div class="col-3">
-        <label>Taux banque (% annuel)</label>
-        <input type="number" step="0.01" id="bank_rate" placeholder="ex. 4.20" />
-      </div>
-      <div class="col-3">
-        <label>Durée prêt banque (années)</label>
-        <input type="number" step="1" id="bank_years" placeholder="ex. 20" />
-      </div>
-
-      <div class="col-6">
-        <label>Avance SASU (€)</label>
-        <input type="number" step="100" id="sasu_amount" placeholder="ex. 100000" />
-      </div>
-      <div class="col-3">
-        <label>Taux SASU (% annuel)</label>
-        <input type="number" step="0.01" id="sasu_rate" placeholder="ex. 3.00" />
-      </div>
-      <div class="col-3">
-        <label>Durée SASU (années)</label>
-        <input type="number" step="1" id="sasu_years" placeholder="ex. 7" />
-      </div>
-
-      <div class="col-3">
-        <label>Taux d’imposition effectif (%)</label>
-        <input type="number" step="0.1" id="tax_rate" placeholder="ex. 15" />
-      </div>
-      <div class="col-3">
-        <label>Gestion locative (% loyers)</label>
-        <input type="number" step="0.1" id="mgmt_pct" placeholder="ex. 7" />
-      </div>
-      <div class="col-3">
-        <label>Provision CAPEX (% loyers)</label>
-        <input type="number" step="0.1" id="capex_pct" placeholder="ex. 10" />
-      </div>
-
-      <div class="col-3">
-        <label>Taux occupation Phase 1</label>
-        <select id="occ_phase1">
-          <option value="1">1.00 (100%)</option>
-          <option value="0.9">0.90</option>
-          <option value="0.8">0.80</option>
-          <option value="0.7">0.70</option>
-          <option value="0.5">0.50</option>
-        </select>
-      </div>
-      <div class="col-3">
-        <label>Taux occupation Phase 2</label>
-        <select id="occ_phase2">
-          <option value="1">1.00 (100%)</option>
-          <option value="0.9">0.90</option>
-          <option value="0.8">0.80</option>
-          <option value="0.7">0.70</option>
-          <option value="0.5">0.50</option>
-        </select>
-      </div>
-    </div>
-    <div class="foot mono">
-      Mensualités calculées via PMT (classique). Les références affichées se synchronisent avec ces paramètres.
-    </div>
-  </section>
-
   <!-- Saisie bien -->
-  <section class="card" data-panel="saisie" hidden>
+  <section class="card" data-panel="saisie">
     <h2 style="margin-top:0">Saisie (bien)</h2>
     <div class="grid">
-      <div class="col-6">
+      <div class="col-4">
         <label>Ville</label>
         <input id="city" placeholder="ex. Joinville-le-Pont" />
       </div>
-      <div class="col-6">
+      <div class="col-4">
+        <label>Code postal</label>
+        <input id="cp" placeholder="ex. 94340" />
+      </div>
+      <div class="col-4">
         <label>Adresse</label>
         <input id="address" placeholder="ex. 3 rue Exemple" />
       </div>
-      <div class="col-4">
+
+      <div class="col-3">
         <label>Prix d’achat FAI (€)</label>
-        <input type="number" step="1000" id="price" placeholder="ex. 550000" />
+        <input type="number" step="1000" id="price" />
       </div>
-      <div class="col-4">
+      <div class="col-3">
         <label>Surface habitable (m²)</label>
-        <input type="number" step="1" id="surf" placeholder="ex. 160" />
-      </div>
-      <div class="col-4">
-        <label>Surface terrain (m²)</label>
-        <input type="number" step="1" id="land" placeholder="ex. 300" />
+        <input type="number" step="1" id="surf" />
       </div>
       <div class="col-3">
         <label>DPE</label>
-        <input id="dpe" placeholder="ex. D" />
+        <input id="dpe" placeholder="A–G, ex. D" />
       </div>
       <div class="col-3">
         <label>Année de construction</label>
-        <input type="number" step="1" id="year" placeholder="ex. 1975" />
+        <input type="number" step="1" id="year" />
       </div>
+
       <div class="col-3">
         <label>Chambres louables (nb)</label>
-        <input type="number" step="1" id="rooms" placeholder="ex. 6" />
+        <input type="number" step="1" id="rooms" />
       </div>
       <div class="col-3">
         <label>Loyer/chambre (€)</label>
-        <input type="number" step="10" id="rent_per_room" placeholder="ex. 650" />
+        <input type="number" step="10" id="rent_per_room" />
       </div>
       <div class="col-3">
         <label>Loyer total mensuel (€)</label>
         <input type="number" step="10" id="rent_total" placeholder="Auto si vide: chambres × loyer/ch." />
       </div>
 
+      <!-- Ces 4 champs sont calculés -->
       <div class="col-3">
-        <label>Charges mensuelles fixes (€)</label>
-        <input type="number" step="10" id="fix_costs" placeholder="eau/élec/gaz/internet…" />
+        <label>Charges mensuelles fixes (€) — <span class="hint">auto</span></label>
+        <input type="number" id="fix_costs" disabled />
       </div>
       <div class="col-3">
-        <label>Taxe foncière annuelle (€)</label>
-        <input type="number" step="10" id="tf_annual" placeholder="ex. 2200" />
+        <label>Taxe foncière annuelle (€) — <span class="hint">auto</span></label>
+        <input type="number" id="tf_annual" disabled />
       </div>
       <div class="col-3">
-        <label>TEOM annuelle (€)</label>
-        <input type="number" step="10" id="teom_annual" placeholder="ex. 400" />
+        <label>TEOM annuelle (€) — <span class="hint">auto</span></label>
+        <input type="number" id="teom_annual" disabled />
       </div>
       <div class="col-3">
-        <label>Autres charges annuelles (€)</label>
-        <input type="number" step="10" id="other_annual" placeholder="copro, syndic, etc." />
+        <label>Autres charges annuelles (€) — <span class="hint">auto</span></label>
+        <input type="number" id="other_annual" disabled />
       </div>
     </div>
-    <div class="sticky-actions">
-      <button class="btn" id="saveBtn">Enregistrer</button>
+
+    <div class="sep"></div>
+    <h3>Financement</h3>
+    <div class="grid">
+      <div class="col-4">
+        <label>Montant prêt banque (€)</label>
+        <input type="number" step="100" id="bank_amount" />
+      </div>
+      <div class="col-4">
+        <label>Taux banque (% annuel)</label>
+        <input type="number" step="0.01" id="bank_rate" />
+      </div>
+      <div class="col-4">
+        <label>Durée prêt banque (années)</label>
+        <input type="number" step="1" id="bank_years" />
+      </div>
+
+      <div class="col-4">
+        <label>Avance SASU (€)</label>
+        <input type="number" step="100" id="sasu_amount" />
+      </div>
+      <div class="col-4">
+        <label>Taux SASU (% annuel)</label>
+        <input type="number" step="0.01" id="sasu_rate" />
+      </div>
+      <div class="col-4">
+        <label>Durée SASU (années)</label>
+        <input type="number" step="1" id="sasu_years" />
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
       <button class="btn accent" id="calcBtn">Recalculer</button>
+      <button class="btn" id="saveBtn">Enregistrer</button>
     </div>
+  </section>
+
+  <!-- Paramètres auto -->
+  <section class="card" data-panel="param" hidden>
+    <h2 style="margin-top:0">Paramètres financiers (calculés)</h2>
+    <div class="grid">
+      <div class="col-3">
+        <label>Taux d’imposition effectif (%) — <span class="hint">auto</span></label>
+        <input type="number" step="0.1" id="tax_rate" disabled />
+      </div>
+      <div class="col-3">
+        <label>Gestion locative (% loyers) — <span class="hint">auto</span></label>
+        <input type="number" step="0.1" id="mgmt_pct" disabled />
+      </div>
+      <div class="col-3">
+        <label>Provision CAPEX (% loyers) — <span class="hint">auto</span></label>
+        <input type="number" step="0.1" id="capex_pct" disabled />
+      </div>
+      <div class="col-3">
+        <label>Occupation Phase 1 — <span class="hint">auto</span></label>
+        <input id="occ_phase1" disabled />
+      </div>
+      <div class="col-3">
+        <label>Occupation Phase 2 — <span class="hint">auto</span></label>
+        <input id="occ_phase2" disabled />
+      </div>
+    </div>
+    <div class="hint mono">Valeurs calculées via référentiels + règles (CP, Ville, DPE, année, tension locative, etc.).</div>
   </section>
 
   <!-- Résultats -->
@@ -203,48 +193,64 @@
     <h2 style="margin-top:0">Résultats</h2>
     <div class="kpi" id="kpiList"></div>
     <div class="sep"></div>
-    <div class="grid">
-      <div class="col-12">
-        <label>Journal de calcul (debug)</label>
-        <textarea id="debug" rows="10" readonly class="mono readonly"></textarea>
-      </div>
-    </div>
+    <label>Journal (debug)</label>
+    <textarea id="debug" rows="12" class="mono" style="width:100%" readonly></textarea>
   </section>
 
   <!-- Référentiels -->
   <section class="card" data-panel="refs" hidden>
     <h2 style="margin-top:0">Référentiels (lecture seule)</h2>
-    <div class="grid">
-      <div class="col-6">
-        <div class="card">
-          <h3 style="margin-top:0">Barème / variables</h3>
-          <ul class="mono" id="refVars">
-            <li>Taux impôt effectif : <span data-ref="tax_rate">—</span> %</li>
-            <li>Gestion locative : <span data-ref="mgmt_pct">—</span> % loyers</li>
-            <li>Provision CAPEX : <span data-ref="capex_pct">—</span> % loyers</li>
-            <li>Occupation phase 1 : <span data-ref="occ_phase1">—</span></li>
-            <li>Occupation phase 2 : <span data-ref="occ_phase2">—</span></li>
-          </ul>
-          <div class="hint">Synchronisé depuis Paramètres.</div>
-        </div>
-      </div>
-      <div class="col-6">
-        <div class="card">
-          <h3 style="margin-top:0">Infos bien (résumé)</h3>
-          <div class="mono" id="refBien">—</div>
-        </div>
-      </div>
-    </div>
+    <div class="mono" id="refDump">Aucun référentiel chargé pour l’instant.</div>
   </section>
 
+  <!-- Sources (API) -->
+  <section class="card" data-panel="sources" hidden>
+    <h2 style="margin-top:0">Sources (API) – CSV / JSON</h2>
+    <p class="hint">Colle une URL CSV/JSON (ex. data.gouv). Elle sera chargée, parsée et fusionnée au référentiel.</p>
+    <div class="grid">
+      <div class="col-12">
+        <label>URL de la source</label>
+        <input id="api_url" value="https://www.data.gouv.fr/api/1/datasets/r/df7a9765-2ac9-45be-905f-d2bc5dc9fc35"/>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn accent" id="btnLoadSource">Charger & Fusionner</button>
+      <button class="btn" id="btnClearSources">Vider le cache des sources</button>
+    </div>
+    <div class="sep"></div>
+    <h3>Journal (sources)</h3>
+    <textarea id="sources_log" class="mono" rows="10" style="width:100%" readonly></textarea>
+  </section>
+
+  <!-- COG (Insee) -->
+  <section class="card" data-panel="cog" hidden>
+    <h2 style="margin-top:0">COG (Insee) – Import des modalités & communes</h2>
+    <p class="hint">Charge le fichier Excel “ensemble_modalite_2025.xlsx” (ou équivalent). On normalise et on fusionne les codes (COM, COMD, ARM...) et événements (10, 20, 30...).</p>
+    <div class="grid">
+      <div class="col-8">
+        <label>URL du fichier COG (xlsx)</label>
+        <input id="cog_url" placeholder="https://…/ensemble_modalite_2025.xlsx" />
+      </div>
+      <div class="col-4">
+        <label>ou Déposer le fichier COG (xlsx)</label>
+        <input type="file" id="cog_file" accept=".xlsx,.xls" />
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn accent" id="btnLoadCOG">Charger COG</button>
+    </div>
+    <div class="sep"></div>
+    <h3>Journal (COG)</h3>
+    <textarea id="cog_log" class="mono" rows="12" style="width:100%" readonly></textarea>
+  </section>
 </div>
 
 <script>
-/*** ========= Helpers ========= ***/
+/* ========= Utils ========= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const fmtEur = v => isNaN(v)? '—' : v.toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});
-
+const norm = s => (String(s||"").toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/[^a-z0-9%€\/\.\- ]+/g,'').replace(/\s+/g,' ').trim());
 function pmt(ratePerPeriod, nPeriods, presentValue){
   if(ratePerPeriod===0) return -(presentValue/nPeriods);
   const r = ratePerPeriod;
@@ -252,34 +258,125 @@ function pmt(ratePerPeriod, nPeriods, presentValue){
 }
 function getNum(sel){ const v = parseFloat($(sel).value); return isNaN(v)?0:v; }
 function getStr(sel){ return $(sel).value?.trim()||""; }
-function saveState(){
-  const inputs = $$("input, select").reduce((acc,el)=>{ acc[el.id]=el.value; return acc; },{});
-  localStorage.setItem("invest_immo_state_v2", JSON.stringify(inputs));
-}
-function loadState(){
-  const raw = localStorage.getItem("invest_immo_state_v2");
-  if(!raw) return;
-  const data = JSON.parse(raw);
-  Object.entries(data).forEach(([k,v])=>{ const el = document.getElementById(k); if(el) el.value = v; });
-}
-function resetState(){
-  localStorage.removeItem("invest_immo_state_v2");
-  $$("input").forEach(el=>el.value="");
-  $$("select").forEach(el=>{ if(el.options.length) el.selectedIndex=0; });
-  renderRefs(); renderKPIs({}); $("#debug").value="";
-}
+function saveState(){ const inputs = $$("input").reduce((acc,el)=> (acc[el.id]=el.value, acc), {}); localStorage.setItem("invest_immo_state_all", JSON.stringify(inputs)); }
+function loadState(){ const raw = localStorage.getItem("invest_immo_state_all"); if(!raw) return; const d=JSON.parse(raw); Object.entries(d).forEach(([k,v])=>{ const el=document.getElementById(k); if(el) el.value=v; }); }
+function append(elId,msg){ const el=$(elId); el.value += (el.value? "\n":"") + msg; el.scrollTop = el.scrollHeight; }
 
-/*** ========= Navigation ========= ***/
+/* ========= Navigation ========= */
 $("#tabs").addEventListener("click", (e)=>{
   const btn = e.target.closest(".tab-btn"); if(!btn) return;
-  $$(".tab-btn").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active");
-  const tab = btn.dataset.tab;
-  $$("[data-panel]").forEach(p=>p.hidden = (p.dataset.panel!==tab));
+  $$(".tab-btn").forEach(b=>b.classList.remove("active")); btn.classList.add("active");
+  $$("[data-panel]").forEach(p=> p.hidden = (p.dataset.panel!==btn.dataset.tab));
 });
 
-/*** ========= Calculs ========= ***/
-const KPI_ORDER = [
+/* ========= Référentiel interne ========= */
+let REF_ROWS = []; // mix: Excel, API, COG
+function describeRef(){
+  const txt = REF_ROWS.length ? `Référentiel total: ${REF_ROWS.length} lignes.\nExtrait:\n` + REF_ROWS.slice(0,8).map(r=>JSON.stringify(r)).join("\n") : "Aucun référentiel.";
+  $("#refDump").textContent = txt;
+}
+
+/* ========= Heuristiques de colonnes ========= */
+const CP_KEYS = ["cp","code postal","code_postal","postal code","code insee","insee"];
+const CITY_KEYS = ["ville","commune","city","nom_commune"];
+const COL_HINTS = {
+  tf_m2: ["taxe fonciere €/m2","tf €/m2","tf m2","taxe fonciere m2"],
+  teom_m2: ["teom €/m2","teom m2"],
+  teom_an: ["teom annuelle (€)","teom €/an","teom an","teom"],
+  charges_fixes_m: ["charges fixes €/mois","charges mensuelles fixes (€)","charges fixes mensuelles","fix costs"],
+  gestion_pct: ["gestion locative (% loyers)","gestion locative %","frais agence %","property management %","mgmt %"],
+  capex_pct: ["provision capex (% loyers)","capex %","provision gros travaux %"],
+  tension: ["tension locative","dossiers/chambre","tension locative (dossiers/ch)"],
+};
+function getColIndex(headers, candidates){
+  const H = headers.map(norm);
+  for(const c of candidates){ const n=norm(c); let i=H.findIndex(h=>h===n); if(i>=0) return i; i=H.findIndex(h=>h.includes(n)); if(i>=0) return i; }
+  return -1;
+}
+function pickNumberFromRow(row, candidates){
+  const keys = Object.keys(row);
+  const idx = getColIndex(keys, candidates);
+  if(idx<0) return null;
+  const key = keys[idx];
+  const val = row[key];
+  const num = parseFloat(String(val).replace(',','.'));
+  return isNaN(num)? null : num;
+}
+
+/* ========= Calculs auto (CP/DPE/Année + référentiel) ========= */
+function deptFromCP(cp){ const m=String(cp||"").trim().match(/^(\d{2})/); return m?m[1]:""; }
+function capexPctFromDPEandAge(dpe, year){
+  const y = parseInt(year||0,10); const age = (y>0)? Math.max(0, new Date().getFullYear()-y) : 40;
+  const d = String(dpe||"").toUpperCase(); let base=10;
+  if(d==="A"||d==="B") base=5; else if(d==="C") base=7; else if(d==="D") base=10; else if(d==="E") base=12; else if(d==="F"||d==="G") base=15;
+  if(age>60) base+=2; return base;
+}
+function findRefRowFor(city, cp){
+  if(!REF_ROWS.length) return null;
+  const cityN = norm(city), cpN = norm(cp);
+  // priorité CP exact sur colonnes CP_KEYS
+  for(const r of REF_ROWS){
+    const keys = Object.keys(r);
+    for(const k of keys){
+      if(CP_KEYS.map(norm).includes(norm(k))){
+        const v = norm(String(r[k]||""));
+        if(v===cpN && cpN) return r;
+      }
+    }
+  }
+  // fallback par ville
+  for(const r of REF_ROWS){
+    const keys = Object.keys(r);
+    for(const k of keys){
+      if(CITY_KEYS.map(norm).includes(norm(k))){
+        const v = norm(String(r[k]||""));
+        if(v===cityN && cityN) return r;
+      }
+    }
+  }
+  return null;
+}
+function autoFromReferential(){
+  const city = getStr("#city"), cp = getStr("#cp"), surf = getNum("#surf"), rooms = getNum("#rooms"), year = getNum("#year"), dpe = getStr("#dpe");
+  const row = findRefRowFor(city, cp);
+  if(!row){ append("#debug","[Auto] Réf introuvable pour cette Ville/CP."); return; }
+
+  // Charges & taxes
+  const tf_m2 = pickNumberFromRow(row, COL_HINTS.tf_m2);
+  const teom_m2 = pickNumberFromRow(row, COL_HINTS.teom_m2);
+  const teom_an = pickNumberFromRow(row, COL_HINTS.teom_an);
+  const charges_fixes_m = pickNumberFromRow(row, COL_HINTS.charges_fixes_m);
+  const gest = pickNumberFromRow(row, COL_HINTS.gestion_pct);
+  const capex = pickNumberFromRow(row, COL_HINTS.capex_pct);
+  const tension = pickNumberFromRow(row, COL_HINTS.tension);
+
+  if(tf_m2!=null && surf>0) $("#tf_annual").value = Math.round(tf_m2*surf);
+  if(teom_m2!=null && surf>0) $("#teom_annual").value = Math.round(teom_m2*surf);
+  if(teom_an!=null) $("#teom_annual").value = Math.round(teom_an);
+  if(charges_fixes_m!=null) $("#fix_costs").value = Math.round(charges_fixes_m);
+
+  if(gest!=null) $("#mgmt_pct").value = gest.toFixed(2); else $("#mgmt_pct").value = "7.00";
+  if(capex!=null) $("#capex_pct").value = capex.toFixed(2); else $("#capex_pct").value = capexPctFromDPEandAge(dpe, year).toFixed(2);
+
+  let occ1="0.90", occ2="1.00";
+  if(tension!=null){
+    if(tension>=5){ occ1="1.00"; occ2="1.00"; }
+    else if(tension>=3){ occ1="0.90"; occ2="1.00"; }
+    else if(tension>=2){ occ1="0.80"; occ2="0.90"; }
+    else if(tension>=1){ occ1="0.70"; occ2="0.80"; }
+    else { occ1="0.50"; occ2="0.70"; }
+  }
+  $("#occ_phase1").value = occ1; $("#occ_phase2").value = occ2;
+
+  // autres charges si vide → 5% loyers
+  const rent = getNum("#rent_total") || (getNum("#rooms")*getNum("#rent_per_room"));
+  if(!getNum("#other_annual") && rent){ $("#other_annual").value = Math.round(rent*12*0.05); }
+
+  saveState();
+}
+
+/* ========= Résultats (modèle simplifié) ========= */
+const KPI_LIST = [
   ["coupon_phase1","Coupon investisseur (phase 1) – intérêts SASU (mensuel)"],
   ["coupon_phase2","Coupon investisseur (phase 2) – mensualité SASU (PMT)"],
   ["charges_tf_mois","Charges + TF / mois (part TF)"],
@@ -288,300 +385,188 @@ const KPI_ORDER = [
   ["mensualite_banque","Mensualité banque (PMT)"],
   ["mensualite_sasu","Mensualité SASU (PMT)"],
   ["charges_mensuelles","Charges mensuelles (fixes+gestion+CAPEX+TEOM+autres/12)"],
-  ["cashflow_m_ph1_occ1","Cash-flow net mensuel après impôt – Phase 1 (occupation = 1)"],
-  ["cashflow_a_ph2_occ1","Cash-flow net annuel après impôt – Phase 2 (occupation = 1)"],
-  ["cashflow_m_ph1_occ05","Cash-flow net mensuel après impôt – Phase 1 (occupation = 0.5)"],
-  ["cashflow_a_ph2_occ05","Cash-flow net annuel après impôt – Phase 2 (occupation = 0.5)"]
+  ["cashflow_m_ph1_occ1","Cash-flow net mensuel – Phase 1 (occ. auto)"],
+  ["cashflow_a_ph2_occ1","Cash-flow net annuel – Phase 2 (occ. auto)"],
+  ["cashflow_m_ph1_occ05","Cash-flow net mensuel – Phase 1 (occ. 50%)"],
+  ["cashflow_a_ph2_occ05","Cash-flow net annuel – Phase 2 (occ. 50%)"]
 ];
+function computeResults(){
+  // entrées
+  const bankAmount = getNum("#bank_amount"), bankRate = getNum("#bank_rate")/100, bankYears = getNum("#bank_years");
+  const sasuAmount = getNum("#sasu_amount"), sasuRate = getNum("#sasu_rate")/100, sasuYears = getNum("#sasu_years");
+  const rooms = getNum("#rooms"), rpr = getNum("#rent_per_room"); let rentTotal = getNum("#rent_total"); if(!rentTotal && rooms && rpr){ rentTotal = rooms*rpr; $("#rent_total").value = rentTotal; }
+  const occ1 = parseFloat($("#occ_phase1").value||"1"), occ2 = parseFloat($("#occ_phase2").value||"1");
+  const fixCosts = getNum("#fix_costs"), tfAnnual=getNum("#tf_annual"), teomAnnual=getNum("#teom_annual"), otherAnnual=getNum("#other_annual");
+  const mgmtPct=getNum("#mgmt_pct")/100, capexPct=getNum("#capex_pct")/100;
 
-function compute(){
-  const bankAmount = getNum("#bank_amount");
-  const bankRateA = getNum("#bank_rate")/100;
-  const bankYears = getNum("#bank_years");
-  const sasuAmount = getNum("#sasu_amount");
-  const sasuRateA = getNum("#sasu_rate")/100;
-  const sasuYears = getNum("#sasu_years");
-  const taxRate = getNum("#tax_rate")/100;
-  const mgmtPct = getNum("#mgmt_pct")/100;
-  const capexPct = getNum("#capex_pct")/100;
+  // PMT
+  const bankM = pmt(bankRate/12, bankYears*12, bankAmount);
+  const sasuM = pmt(sasuRate/12, sasuYears*12, sasuAmount);
+  const mensualiteBanque=-bankM, mensualiteSASU=-sasuM;
 
-  const rooms = getNum("#rooms");
-  const rentPerRoom = getNum("#rent_per_room");
-  let rentTotal = getNum("#rent_total");
-  if(rentTotal===0 && rooms>0 && rentPerRoom>0){
-    rentTotal = rooms * rentPerRoom; $("#rent_total").value = rentTotal.toString();
+  // coupons / loyers / charges
+  const RSASU_an = sasuAmount*sasuRate; // approx intérêts annuels phase 1
+  const loyersA = rentTotal*12;
+  const gestionA = rentTotal*mgmtPct*12, capexA = rentTotal*capexPct*12;
+  const chargesA = (fixCosts*12)+tfAnnual+teomAnnual+otherAnnual+gestionA+capexA;
+
+  // impôts effectifs (approx simple) : 35% * max(0, loyers - charges)
+  const baseImposable = Math.max(0, loyersA - chargesA);
+  const cotSoc = baseImposable*0.35; // simplification
+  const IR = Math.max(0, baseImposable - cotSoc) * 0.11; // tranche simplifiée
+  const tauxEffAff = ((cotSoc+IR)/Math.max(1, loyersA*occ2))*100;
+  $("#tax_rate").value = tauxEffAff.toFixed(1);
+
+  // cashflows
+  function net(occ, phase){
+    const lOcc = loyersA*occ;
+    const sasu = (phase===1)? RSASU_an : (mensualiteSASU*12);
+    const netA = lOcc - chargesA - (mensualiteBanque*12) - sasu - (cotSoc+IR);
+    return netA;
   }
-
-  const fixCosts = getNum("#fix_costs");
-  const tfAnnual = getNum("#tf_annual");
-  const teomAnnual = getNum("#teom_annual");
-  const otherAnnual = getNum("#other_annual");
-
-  const bankM = pmt(bankRateA/12, bankYears*12, bankAmount);
-  const sasuM = pmt(sasuRateA/12, sasuYears*12, sasuAmount);
-
-  const couponPhase1 = sasuAmount * (sasuRateA/12);
-  const couponPhase2 = -sasuM;
-
-  const gestion = rentTotal * mgmtPct;
-  const capex = rentTotal * capexPct;
-  const chargesMensuelles = fixCosts + gestion + capex + (tfAnnual/12) + (teomAnnual/12) + (otherAnnual/12);
-
-  const revenusMensuels = rentTotal;
-  const revenusAnnuels = rentTotal * 12;
-
-  const mensualiteBanque = -bankM;
-  const mensualiteSASU = -sasuM;
-
-  function netAfterTax(monthlyRev, occ, phase){
-    const rev = monthlyRev * occ;
-    const interetsBanqueEstimes = bankAmount * (bankRateA/12);
-    const interetsSASU_Ph1 = couponPhase1;
-    const depensesBase = chargesMensuelles + mensualiteBanque;
-    const depensesPhase = phase===1 ? (depensesBase + interetsSASU_Ph1) : (depensesBase + mensualiteSASU);
-    const resultatAvantImp = rev - depensesPhase;
-    const baseImposable = Math.max(0, rev - (chargesMensuelles + interetsBanqueEstimes + (phase===1? interetsSASU_Ph1 : mensualiteSASU)));
-    const impots = baseImposable * taxRate;
-    const net = resultatAvantImp - impots;
-    return {net, impots, details:{rev, depensesPhase, baseImposable, interetsBanqueEstimes}};
-  }
-
-  const ph1_occ1 = netAfterTax(revenusMensuels, 1.0, 1);
-  const ph2_occ1 = netAfterTax(revenusMensuels, 1.0, 2);
-  const ph1_occ05 = netAfterTax(revenusMensuels, 0.5, 1);
-  const ph2_occ05 = netAfterTax(revenusMensuels, 0.5, 2);
-
-  return {
-    coupon_phase1: couponPhase1,
-    coupon_phase2: couponPhase2,
-    charges_tf_mois: (tfAnnual/12),
-    revenus_brut_m: revenusMensuels,
-    revenus_brut_a: revenusAnnuels,
+  const res = {
+    revenus_brut_m: rentTotal,
+    revenus_brut_a: loyersA,
     mensualite_banque: mensualiteBanque,
     mensualite_sasu: mensualiteSASU,
-    charges_mensuelles: chargesMensuelles,
-    cashflow_m_ph1_occ1: ph1_occ1.net,
-    cashflow_a_ph2_occ1: ph2_occ1.net*12,
-    cashflow_m_ph1_occ05: ph1_occ05.net,
-    cashflow_a_ph2_occ05: ph2_occ05.net*12,
-    dbg: {inputs:{
-      bankAmount,bankRateA,bankYears,sasuAmount,sasuRateA,sasuYears,taxRate,mgmtPct,capexPct,
-      rooms,rentPerRoom,rentTotal,fixCosts,tfAnnual,teomAnnual,otherAnnual
-    }}
+    charges_mensuelles: (chargesA/12),
+    coupon_phase1: RSASU_an/12,
+    coupon_phase2: mensualiteSASU,
+    charges_tf_mois: (tfAnnual/12),
+    cashflow_m_ph1_occ1: net(occ1,1)/12,
+    cashflow_a_ph2_occ1: net(occ2,2),
+    cashflow_m_ph1_occ05: net(0.5,1)/12,
+    cashflow_a_ph2_occ05: net(0.5,2)
   };
+  const dbg = {loyersA, chargesA, gestionA, capexA, cotSoc, IR, tauxEffAff};
+  return {res, dbg};
 }
-
-function renderKPIs(res){
-  const root = $("#kpiList");
-  root.innerHTML = "";
-  const moneyKeys = new Set(["coupon_phase1","coupon_phase2","charges_tf_mois","revenus_brut_m","revenus_brut_a","mensualite_banque","mensualite_sasu","charges_mensuelles","cashflow_m_ph1_occ1","cashflow_a_ph2_occ1","cashflow_m_ph1_occ05","cashflow_a_ph2_occ05"]);
-  KPI_ORDER.forEach(([key,label])=>{
-    const val = res[key];
-    const sign = (typeof val==="number" && (key.startsWith("cashflow")||key.startsWith("coupon")||key.startsWith("mensualite")||key.startsWith("charges"))) ? (val>=0?"pos":"neg") : "";
-    const display = moneyKeys.has(key) ? fmtEur(val) : (typeof val==="number"? val.toLocaleString("fr-FR") : "—");
-    const el = document.createElement("div");
-    el.className = "item";
-    el.innerHTML = `<h3>${label}</h3><div class="val ${sign}">${display}</div>`;
-    root.appendChild(el);
+function renderKPIs(obj){
+  const root=$("#kpiList"); root.innerHTML="";
+  const money = new Set(KPI_LIST.map(x=>x[0]));
+  KPI_LIST.forEach(([k,label])=>{
+    const v=obj[k]; const sign=(typeof v==="number" && (k.startsWith("cashflow")||k.startsWith("mensualite")||k.startsWith("coupon")||k.startsWith("charges")))?(v>=0?"pos":"neg"):"";
+    const disp = money.has(k)? fmtEur(v) : (typeof v==="number"? v.toLocaleString("fr-FR"):"—");
+    const el=document.createElement("div"); el.className="item"; el.innerHTML=`<h3>${label}</h3><div class="val ${sign}">${disp}</div>`; root.appendChild(el);
   });
-  $("#debug").value = JSON.stringify(res.dbg, null, 2);
 }
 
-function renderRefs(){
-  $("[data-ref='tax_rate']").textContent = $("#tax_rate").value || "—";
-  $("[data-ref='mgmt_pct']").textContent = $("#mgmt_pct").value || "—";
-  $("[data-ref='capex_pct']").textContent = $("#capex_pct").value || "—";
-  $("[data-ref='occ_phase1']").textContent = $("#occ_phase1").value || "—";
-  $("[data-ref='occ_phase2']").textContent = $("#occ_phase2").value || "—";
-
-  const parts = [
-    ["Ville", getStr("#city")],
-    ["Adresse", getStr("#address")],
-    ["Prix", fmtEur(getNum("#price"))],
-    ["Surface", (getNum("#surf")? getNum("#surf")+" m²":"—")],
-    ["Terrain", (getNum("#land")? getNum("#land")+" m²":"—")],
-    ["DPE", getStr("#dpe")||"—"],
-    ["Année", getStr("#year")||"—"],
-    ["Chambres", getStr("#rooms")||"—"],
-    ["Loyer/ch.", (getNum("#rent_per_room")? fmtEur(getNum("#rent_per_room")):"—")],
-    ["Loyer total", (getNum("#rent_total")? fmtEur(getNum("#rent_total")):"—")]
-  ];
-  $("#refBien").innerHTML = parts.map(([k,v])=>`<div><b>${k} :</b> ${v}</div>`).join("");
+/* ========= Sources (API) CSV/JSON ========= */
+const SRC_CACHE_KEY = "immo_api_sources_v1";
+async function fetchText(url){ const res=await fetch(url,{mode:"cors"}); if(!res.ok) throw new Error(`HTTP ${res.status}`); return await res.text(); }
+function looksLikeJSON(t){ t=t.trim(); return t.startsWith("{")||t.startsWith("["); }
+function toRowsFromJSON(json){
+  if(Array.isArray(json) && json.length && typeof json[0]==="object") return json;
+  if(json && typeof json==="object"){ const k=Object.keys(json).find(k=>Array.isArray(json[k])); if(k) return json[k]; }
+  return [];
 }
+function normalizeRow(row){ const out={}; for(const [k,v] of Object.entries(row)){ out[k]=v; out["__"+norm(k)]=v; } return out; }
+function mergeIntoReferential(rows){ let added=0; for(const r of rows){ const flat=normalizeRow(r); flat.__sheet = flat.__sheet || "API"; REF_ROWS.push(flat); added++; } describeRef(); return added; }
 
-/*** ========= Sauvegarde / Events ========= ***/
-$("#saveBtn").addEventListener("click", ()=>{ saveState(); renderRefs(); });
-$("#calcBtn").addEventListener("click", ()=>{ saveState(); renderRefs(); renderKPIs(compute()); });
-$("#resetBtn").addEventListener("click", ()=>{ resetState(); });
+document.getElementById("btnLoadSource").addEventListener("click", async ()=>{
+  const url = $("#api_url").value.trim(); if(!url){ alert("URL requise"); return; }
+  try{
+    append("#sources_log","Chargement: "+url);
+    const raw = await fetchText(url);
+    let rows = [];
+    if(looksLikeJSON(raw)){ rows = toRowsFromJSON(JSON.parse(raw)); append("#sources_log",`→ JSON (${rows.length})`); }
+    else { const parsed = Papa.parse(raw,{header:true,dynamicTyping:true,skipEmptyLines:true}); rows = parsed.data; append("#sources_log",`→ CSV (${rows.length})`); }
+    const added = mergeIntoReferential(rows);
+    append("#sources_log",`Fusion: +${added}, total=${REF_ROWS.length}`);
+    // recalcul si ville/CP présents
+    if(getStr("#cp")||getStr("#city")){ autoFromReferential(); const {res,dbg}=computeResults(); renderKPIs(res); $("#debug").value = JSON.stringify(dbg,null,2); }
+    // cache
+    const cache = JSON.parse(localStorage.getItem(SRC_CACHE_KEY)||"[]"); if(!cache.includes(url)) cache.push(url); localStorage.setItem(SRC_CACHE_KEY, JSON.stringify(cache));
+  }catch(e){ append("#sources_log","❌ "+e.message); alert(e.message); }
+});
+document.getElementById("btnClearSources").addEventListener("click", ()=>{ localStorage.removeItem(SRC_CACHE_KEY); append("#sources_log","Cache effacé."); });
 
-$$("input,select,textarea").forEach(el=>{
-  el.addEventListener("change", ()=>{ saveState(); });
+/* ========= COG (Insee) – Importeur XLSX ========= */
+function aoaToRowsDetectHeader(ws){
+  const aoa = XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+  if(!aoa.length) return {headers:[],rows:[]};
+  let headerRowIdx = -1;
+  for(let r=0;r<Math.min(40, aoa.length); r++){
+    const nonEmpty = (aoa[r]||[]).filter(x=>String(x).trim()!=="").length;
+    if(nonEmpty>=3){ headerRowIdx=r; break; }
+  }
+  if(headerRowIdx<0) return {headers:[],rows:[]};
+  const headers = (aoa[headerRowIdx]||[]).map(h=>String(h));
+  const rows = aoa.slice(headerRowIdx+1).filter(r=>r && r.some(v=>String(v).trim()!=="")).map(r=>{
+    const o={}; headers.forEach((h,i)=> o[h]=r[i]); return o;
+  });
+  return {headers, rows};
+}
+function enrichCOGRow(obj){
+  // Ajoute quelques champs dérivés utiles pour le matching
+  const out = normalizeRow(obj);
+  // exemple: si un code commune “COM” / “COMD” / “ARM” est présent, on garde un champ générique
+  const keys = Object.keys(obj);
+  const candidateCodeKeys = ["code commune","com","code com","code insee","insee","codgeo","codgeo commune","code"];
+  const idx = getColIndex(keys, candidateCodeKeys);
+  if(idx>=0){ const k=keys[idx]; out["__code_commune"] = String(obj[k]).trim(); }
+  const villeIdx = getColIndex(keys, ["nom","nom de la commune","libelle","libellé","intitule"]);
+  if(villeIdx>=0){ const k=keys[villeIdx]; out["__nom_commune"] = String(obj[k]).trim(); }
+  // événements (10=chgt nom, 20=création, 30=suppression…)
+  const eventIdx = getColIndex(keys, ["evenement","événement","type evenement","type événement","type"]);
+  if(eventIdx>=0){ const k=keys[eventIdx]; out["__evenement"] = String(obj[k]).trim(); }
+  out.__sheet = "COG";
+  return out;
+}
+async function loadCOGFromURL(url){
+  append("#cog_log","Chargement COG: "+url);
+  const res = await fetch(url, {mode:"cors"});
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, {type:"array"});
+  let added=0, sheets=0;
+  for(const name of wb.SheetNames){
+    const ws = wb.Sheets[name]; sheets++;
+    const {headers, rows} = aoaToRowsDetectHeader(ws);
+    if(!rows.length) continue;
+    for(const r of rows){ REF_ROWS.push(enrichCOGRow(r)); added++; }
+  }
+  describeRef();
+  append("#cog_log",`COG fusionné: ${sheets} feuille(s), +${added} lignes.`);
+  // recalcul si ville/CP présents
+  if(getStr("#cp")||getStr("#city")){ autoFromReferential(); const {res,dbg}=computeResults(); renderKPIs(res); $("#debug").value = JSON.stringify(dbg,null,2); }
+}
+async function loadCOGFromFile(file){
+  append("#cog_log","Lecture COG (fichier local)...");
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:"array"});
+  let added=0, sheets=0;
+  for(const name of wb.SheetNames){
+    const ws = wb.Sheets[name]; sheets++;
+    const {headers, rows} = aoaToRowsDetectHeader(ws);
+    if(!rows.length) continue;
+    for(const r of rows){ REF_ROWS.push(enrichCOGRow(r)); added++; }
+  }
+  describeRef();
+  append("#cog_log",`COG fusionné: ${sheets} feuille(s), +${added} lignes.`);
+  if(getStr("#cp")||getStr("#city")){ autoFromReferential(); const {res,dbg}=computeResults(); renderKPIs(res); $("#debug").value = JSON.stringify(dbg,null,2); }
+}
+document.getElementById("btnLoadCOG").addEventListener("click", async ()=>{
+  const url = $("#cog_url").value.trim();
+  const file = $("#cog_file").files?.[0] || null;
+  try{
+    if(url){ await loadCOGFromURL(url); }
+    else if(file){ await loadCOGFromFile(file); }
+    else { alert("Renseigne une URL COG ou dépose un fichier."); }
+  }catch(e){ append("#cog_log","❌ "+e.message); alert(e.message); }
 });
 
-/*** ========= Import Excel – AUTO multi-feuilles + synonymes ========= ***/
-// normalise accents/espaces/casse
-const norm = s => (String(s||"")
-  .toLowerCase()
-  .normalize('NFD')
-  .replace(/\p{Diacritic}/gu,'')
-  .replace(/[^a-z0-9%€\/\.\- ]+/g,'')
-  .replace(/\s+/g,' ')
-  .trim()
-);
+/* ========= Actions générales ========= */
+$("#calcBtn").addEventListener("click", ()=>{ autoFromReferential(); const {res,dbg}=computeResults(); renderKPIs(res); $("#debug").value = JSON.stringify(dbg,null,2); });
+$("#saveBtn").addEventListener("click", ()=>{ saveState(); alert("Données sauvegardées (local)"); });
+$("#resetBtn").addEventListener("click", ()=>{ localStorage.removeItem("invest_immo_state_all"); location.reload(); });
+$$("input").forEach(el=> el.addEventListener("change", ()=> saveState()));
 
-// dictionnaire de cibles => synonymes possibles (FR/EN tolérés)
-const FIELD_SYNONYMS = {
-  bank_amount: [
-    "montant du pret banque","montant pret banque","montant pret (banque)","loan amount","bank amount","montant du pret (banque)"
-  ],
-  bank_rate: [
-    "taux banque","taux du pret banque","interet banque %","bank rate","taux nominal banque","taux dinteret banque"
-  ],
-  bank_years: [
-    "duree du pret (annees)","duree pret banque (annees)","duree banque","loan years","duree du credit (annees)"
-  ],
-  sasu_amount: [
-    "avance sasu (€)","avance sasu","montant avance sasu","sasu amount","pret intra groupe sasu"
-  ],
-  sasu_rate: [
-    "taux sasu (%)","taux sasu","interest sasu","sasu rate"
-  ],
-  sasu_years: [
-    "duree sasu (annees)","duree sasu","sasu years"
-  ],
-  tax_rate: [
-    "taux dimposition effectif (%)","taux dimposition effectif","taux impot effectif","taux impot","tax rate"
-  ],
-  mgmt_pct: [
-    "gestion locative (% loyers)","gestion locative %","frais dagence %","property management %","mgmt %"
-  ],
-  capex_pct: [
-    "provision capex (% loyers)","capex %","provision gros travaux %"
-  ],
-  city: [
-    "ville","city"
-  ],
-  address: [
-    "adresse","address"
-  ],
-  price: [
-    "prix dachat frais compris","prix dachat fai (€)","prix dachat","prix fai","price"
-  ],
-  surf: [
-    "surface habitable (m²)","surface habitable","surface"
-  ],
-  land: [
-    "surface terrain (m²)","surface terrain","terrain"
-  ],
-  dpe: [
-    "dpe","diagnostic dpe","classe dpe"
-  ],
-  year: [
-    "annee de construction","annee construction","year built","construction year"
-  ],
-  rooms: [
-    "nombre de chambres louables","nb chambres louables","nb chambres","chambres louables"
-  ],
-  rent_per_room: [
-    "loyer/chambre (€)","loyer par chambre","loyer chambre","rent per room"
-  ],
-  rent_total: [
-    "loyer total mensuel (€)","loyer total mensuel","revenus bruts mensuels","monthly rent total","loyer total"
-  ],
-  fix_costs: [
-    "charges mensuelles fixes (€)","charges mensuelles fixes","charges fixes mensuelles"
-  ],
-  tf_annual: [
-    "taxe fonciere annuelle (€)","taxe fonciere annuelle","taxe fonciere","tf annuelle"
-  ],
-  teom_annual: [
-    "teom annuelle (€)","teom annuelle","teom"
-  ],
-  other_annual: [
-    "autres charges annuelles (€)","autres charges annuelles","autres charges / an"
-  ]
-};
-
-// test exact + contient
-function findHeaderIndex(headers, wantedList){
-  // headers: array of normalised header strings
-  const wanted = wantedList.map(norm);
-  // exact match
-  for(let i=0;i<wanted.length;i++){
-    const idx = headers.findIndex(h => h === wanted[i]);
-    if(idx>=0) return idx;
-  }
-  // contains
-  for(let i=0;i<wanted.length;i++){
-    const idx = headers.findIndex(h => h.includes(wanted[i]));
-    if(idx>=0) return idx;
-  }
-  return -1;
-}
-
-function firstNonEmptyRowAfter(headersRowIndex, rows){
-  for(let r=headersRowIndex+1; r<rows.length; r++){
-    const row = rows[r] || [];
-    if(row.some(v => v!==null && v!==undefined && String(v).trim()!=="")) return r;
-  }
-  return -1;
-}
-
-$("#importXlsBtn").addEventListener("click", ()=> $("#xlsFile").click());
-$("#xlsFile").addEventListener("change", async (e)=>{
-  const file = e.target.files?.[0]; if(!file) return;
-  const arrayBuffer = await file.arrayBuffer();
-  const wb = XLSX.read(arrayBuffer, {type:"array"});
-
-  const log = [];
-  let filledCount = 0;
-  // Parcours toutes les feuilles
-  for(const wsName of wb.SheetNames){
-    const ws = wb.Sheets[wsName];
-    // lis brute (tableau de tableaux) pour détecter la ligne d'en-têtes
-    const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
-    if(!aoa || !aoa.length) continue;
-
-    // trouve la ligne dont au moins 3 cellules non vides = en-têtes
-    let headerRowIdx = -1;
-    for(let r=0; r<Math.min(20, aoa.length); r++){
-      const nonEmpty = (aoa[r]||[]).filter(x => String(x).trim()!=="").length;
-      if(nonEmpty>=3){ headerRowIdx = r; break; }
-    }
-    if(headerRowIdx<0) continue;
-
-    const rawHeaders = (aoa[headerRowIdx] || []).map(h => String(h));
-    const headersNorm = rawHeaders.map(h => norm(h));
-    const dataRowIdx = firstNonEmptyRowAfter(headerRowIdx, aoa);
-    if(dataRowIdx<0) continue;
-    const dataRow = aoa[dataRowIdx] || [];
-
-    // pour chaque champ cible, essaie de trouver l'index de colonne
-    Object.entries(FIELD_SYNONYMS).forEach(([fieldId, synonyms])=>{
-      // si déjà rempli, ne pas écraser (priorité à la 1ère correspondance)
-      const el = document.getElementById(fieldId);
-      if(!el) return;
-      if(el.value && String(el.value).trim()!=="") return;
-
-      const idx = findHeaderIndex(headersNorm, synonyms);
-      if(idx>=0 && dataRow[idx] !== undefined && String(dataRow[idx]).trim()!==""){
-        el.value = dataRow[idx];
-        filledCount++;
-        log.push(`Feuille "${wsName}": ${fieldId} ← "${rawHeaders[idx]}" = ${dataRow[idx]}`);
-      }
-    });
-  }
-
-  saveState(); renderRefs(); renderKPIs(compute());
-  $("#debug").value = `Import terminé. Champs remplis: ${filledCount}\n\n` + log.join("\n");
-  alert(`Import terminé depuis ${wb.SheetNames.length} feuille(s). ${filledCount} champ(s) détecté(s) et rempli(s).`);
-});
-
-/*** ========= Init ========= ***/
+/* ========= Init ========= */
 loadState();
-renderRefs();
-const initState = JSON.parse(localStorage.getItem("invest_immo_state_v2")||"{}");
-if(Object.keys(initState).length){ renderKPIs(compute()); } else { renderKPIs({}); }
+describeRef();
+renderKPIs({});
+$("#debug").value = "Charge (1) des datasets API, (2) un fichier/référence Excel, et/ou (3) le COG (Insee).\nSaisis Ville/CP/Surface → Recalculer.";
 </script>
 </body>
 </html>
