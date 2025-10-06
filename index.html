@@ -246,6 +246,64 @@
 </div>
 
 <script>
+// Remplace l’ancienne version de norm(...) par celle-ci :
+const norm = s => String(s || "")
+  .toLowerCase()
+  .normalize("NFD")
+  // Au lieu de \p{Diacritic} (qui casse certains moteurs), on enlève les combining marks Unicode :
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9%€\/\.\- ]+/g, "")
+  .replace(/\s+/g, " ")
+  .trim();
+</script>
+document.addEventListener("DOMContentLoaded", function(){
+  // ... tout le code d'init ici (loadState, describeRef, renderKPIs, preload, etc.)
+});
+</script>
+(function(){
+  // 1) norm() compatible universel
+  window.norm = s => String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9%€\/\.\- ]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // 2) Helpers robustes (si absents)
+  const $ = s => document.querySelector(s);
+  function safeFile(inputId){
+    const el = document.getElementById(inputId);
+    return (el && el.files && el.files[0]) ? el.files[0] : null;
+  }
+
+  // 3) Relancer l’init après DOM prêt
+  document.addEventListener("DOMContentLoaded", function(){
+    try{
+      // si tes fonctions existent déjà, on les appelle
+      if (typeof loadState === "function") loadState();
+      if (typeof describeRef === "function") describeRef();
+      if (typeof renderKPIs === "function") renderKPIs({});
+
+      // si tu as un préchargement de sources, il continuera de marcher
+      // et en cas d’échec on ne bloque pas l’UI :
+      (async () => {
+        try{
+          // laisse en place ton preload existant si tu en as un
+        }catch(e){
+          const log = document.getElementById("sources_log");
+          if (log) { log.value += (log.value ? "\n" : "") + "Préchargement annulé : " + e.message; }
+        }
+      })();
+    }catch(err){
+      // dernière barrière: ne laisse jamais l'app se figer
+      const dbg = document.getElementById("debug");
+      if (dbg) { dbg.value += (dbg.value ? "\n" : "") + "Erreur init: " + (err && err.message ? err.message : err); }
+      console.error(err);
+    }
+  });
+})();
+</script>
 /* ========= Utils ========= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
