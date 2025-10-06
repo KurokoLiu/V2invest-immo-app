@@ -623,7 +623,7 @@ const PRELOAD_SOURCES = [
   if(getStr("#cp") || getStr("#city")){
     autoFromReferential();
     const {res,dbg} = computeResults();
-    renderKPIs(res);
+    renderKPIs(res);document.getElementById("cog_url").value = "https://object.files.data.gouv.fr/hydra-parquet/hydra-parquet/6997e3e8dfa7707040642cfe0e2badec.parquet";
     const dbgEl = document.getElementById("debug");
     if(dbgEl) dbgEl.value = (dbgEl.value? dbgEl.value+"\n\n":"") + "[Préchargement]\n" + JSON.stringify(dbg,null,2);
   } else {
