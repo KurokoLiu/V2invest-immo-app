@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Invest_IMMO • Auto calculs + Référentiels (HTML) + IR2025 + CAPEX</title>
-<!-- Libs -->
+<title>Invest_IMMO • Auto calculs + HTML data.gouv + COG 2025 intégré</title>
+<!-- Lib: CSV parser -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 <style>
 :root{--bg:#0f1222;--fg:#f3f5ff;--muted:#aeb3d0;--card:#171a2e;--line:#252947;--accent:#6ea8fe;--accent2:#9c6efe;--ok:#3ddc84;--bad:#ff6b6b}
@@ -37,7 +37,7 @@ input[disabled]{opacity:.7}
 </head>
 <body>
 <header>
-  <h1>Invest_IMMO • Auto calculs par CP (HTML data.gouv)</h1>
+  <h1>Invest_IMMO • Auto calculs (HTML data.gouv) + COG 2025 intégré</h1>
   <span class="pill">IR 2025 + CAPEX DPE×Âge</span>
   <button class="btn" id="resetBtn">Réinitialiser</button>
 </header>
@@ -116,9 +116,16 @@ input[disabled]{opacity:.7}
 
   <!-- Référentiels -->
   <section class="card" data-panel="refs" hidden>
-    <h2>Référentiels (aperçu)</h2>
-    <p class="hint">Affiche un extrait des lignes fusionnées (HTML/CSV/JSON).</p>
-    <textarea id="refDump" rows="12" class="mono" style="width:100%" readonly>Aucun référentiel chargé.</textarea>
+    <h2>Référentiels (aperçu + COG)</h2>
+    <div class="grid">
+      <div class="col-12">
+        <textarea id="refDump" rows="12" class="mono" style="width:100%" readonly>Aucun référentiel chargé.</textarea>
+      </div>
+      <div class="col-12">
+        <h3 style="margin:8px 0">Résumé COG (appliqué automatiquement)</h3>
+        <textarea id="cogDump" rows="8" class="mono" style="width:100%" readonly></textarea>
+      </div>
+    </div>
   </section>
 
   <!-- Sources (HTML/CSV/JSON) -->
@@ -160,11 +167,84 @@ document.addEventListener("DOMContentLoaded", function(){
     $$("[data-panel]").forEach(p=> p.hidden = (p.dataset.panel!==b.dataset.tab));
   });
 
+  /* ===== COG 2025 intégré (tables de correspondance) ===== */
+  const COG_TYPES_COMMUNE = {
+    "COM":"Commune",
+    "COMA":"Commune associée",
+    "COMD":"Commune déléguée",
+    "ARM":"Arrondissement municipal"
+  };
+  const COG_TYPES_NOM = {
+    // clés indicatives — utilisées si une colonne "type de nom" apparaît
+    "1":"Nom sans article", "2":"Nom avec article élidé", "3":"Nom avec article séparé", "4":"Nom pluriel"
+  };
+  const COG_TYPES_EVENEMENT = {
+    "10":"Changement de nom",
+    "20":"Création",
+    "21":"Rétablissement",
+    "30":"Suppression",
+    "31":"Fusion simple",
+    "32":"Création de commune nouvelle",
+    "33":"Fusion association",
+    "34":"Transformation de fusion association",
+    "35":"Suppression de commune déléguée",
+    "41":"Changement de code (département)",
+    "50":"Changement de code (chef-lieu)",
+    "70":"Transformation en commune déléguée",
+    "71":"Rétablissement de commune déléguée"
+  };
+  const COG_TYPES_CANTON = {"C":"Canton","V":"Canton-ville","N":"Canton fictif"};
+  const COG_ZONAGE_OUTREMER = {"COM":"Commune","DIS":"District","CIR":"Circonscription territoriale","CPT":"La Passion–Clipperton","CDM":"Île des Faisans"};
+
+  function cogAnnotate(row){
+    // Ajoute des libellés COG si des codes sont présents dans la ligne HTML importée
+    const keys = Object.keys(row);
+    const valFor = (aliases)=> {
+      const H = keys.map(norm);
+      for (let a of aliases){ const i = H.indexOf(norm(a)); if(i>=0) return row[keys[i]]; }
+      return null;
+    };
+    const out = {};
+
+    const typeCommune = String(valFor(["type de commune","type_commune","type com","nature commune","type"])) || "";
+    if (typeCommune && COG_TYPES_COMMUNE[typeCommune]) out.__cog_type_commune = COG_TYPES_COMMUNE[typeCommune];
+
+    const evt = String(valFor(["type d’événement","type evenement","evenement","événement","event code"])) || "";
+    if (evt && COG_TYPES_EVENEMENT[evt]) out.__cog_type_evenement = COG_TYPES_EVENEMENT[evt];
+
+    const canton = String(valFor(["type de canton","type_canton","canton type"])) || "";
+    if (canton && COG_TYPES_CANTON[canton]) out.__cog_type_canton = COG_TYPES_CANTON[canton];
+
+    const zon = String(valFor(["nature de zonage","nature zonage","zonage","om nature"])) || "";
+    if (zon && COG_ZONAGE_OUTREMER[zon]) out.__cog_zonage = COG_ZONAGE_OUTREMER[zon];
+
+    return out;
+  }
+
+  function cogDescribeCounts(rows){
+    // Petit résumé utile dans l’onglet Référentiels
+    const counts = {type_commune:{}, evenement:{}, canton:{}, zonage:{}};
+    rows.forEach(r=>{
+      if(r.__cog_type_commune) counts.type_commune[r.__cog_type_commune]=(counts.type_commune[r.__cog_type_commune]||0)+1;
+      if(r.__cog_type_evenement) counts.evenement[r.__cog_type_evenement]=(counts.evenement[r.__cog_type_evenement]||0)+1;
+      if(r.__cog_type_canton) counts.canton[r.__cog_type_canton]=(counts.canton[r.__cog_type_canton]||0)+1;
+      if(r.__cog_zonage) counts.zonage[r.__cog_zonage]=(counts.zonage[r.__cog_zonage]||0)+1;
+    });
+    const lines=[];
+    function block(title,obj){ lines.push("[" + title + "]"); Object.keys(obj).forEach(k=> lines.push("- "+k+": "+obj[k])); if(!Object.keys(obj).length) lines.push("- (aucun)"); lines.push(""); }
+    block("Type de commune", counts.type_commune);
+    block("Type d’événement", counts.evenement);
+    block("Type de canton", counts.canton);
+    block("Zonage outre-mer", counts.zonage);
+    return lines.join("\n");
+  }
+
   /* ===== Référentiel fusionné ===== */
   let REF_ROWS = []; // lignes venant de HTML/API
   function describeRef(){
     const txt = REF_ROWS.length ? `Référentiel total: ${REF_ROWS.length} lignes.\n`+REF_ROWS.slice(0,8).map(r=>JSON.stringify(r)).join("\n") : "Aucun référentiel.";
     const out=$("#refDump"); if(out) out.value=txt;
+    const c=$("#cogDump"); if(c) c.value = cogDescribeCounts(REF_ROWS);
   }
 
   /* ===== Heuristiques colonnes ===== */
@@ -181,9 +261,9 @@ document.addEventListener("DOMContentLoaded", function(){
   };
   function getColIndex(headers, candidates){
     const H=headers.map(norm);
-    for(var i=0;i<candidates.length;i++){
-      var c=norm(candidates[i]);
-      var idx=H.indexOf(c); if(idx>=0) return idx;
+    for(let i=0;i<candidates.length;i++){
+      const c=norm(candidates[i]);
+      let idx=H.indexOf(c); if(idx>=0) return idx;
       idx=H.findIndex(h=>h.indexOf(c)>=0); if(idx>=0) return idx;
     }
     return -1;
@@ -194,11 +274,18 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
   /* ===== Fusion helpers ===== */
-  function normalizeRow(row){ const out={}; for(var k in row){ if(!Object.prototype.hasOwnProperty.call(row,k)) continue; out[k]=row[k]; out["__"+norm(k)]=row[k]; } return out; }
+  function normalizeRow(row){
+    const out={};
+    for(const k in row){ if(!Object.prototype.hasOwnProperty.call(row,k)) continue; out[k]=row[k]; out["__"+norm(k)]=row[k]; }
+    // Ajout des libellés COG quand possible
+    const cog = cogAnnotate(row);
+    Object.assign(out, cog);
+    return out;
+  }
   function mergeIntoReferential(rows, sourceLabel){
-    var added=0;
-    for(var i=0;i<rows.length;i++){
-      var flat=normalizeRow(rows[i]);
+    let added=0;
+    for(let i=0;i<rows.length;i++){
+      const flat=normalizeRow(rows[i]);
       flat.__sheet = sourceLabel || flat.__sheet || "API/HTML";
       REF_ROWS.push(flat); added++;
     }
@@ -206,23 +293,23 @@ document.addEventListener("DOMContentLoaded", function(){
   }
   function findRefRowFor(city,cp){
     if(!REF_ROWS.length) return null;
-    var cityN=norm(city), cpN=norm(cp);
+    const cityN=norm(city), cpN=norm(cp);
     // priorité CP exact
-    for(var r of REF_ROWS){
-      var keys=Object.keys(r);
-      for(var k of keys){
+    for(const r of REF_ROWS){
+      const keys=Object.keys(r);
+      for(const k of keys){
         if(CP_KEYS.map(norm).indexOf(norm(k))>=0){
-          var v=norm(String(r[k]||""));
+          const v=norm(String(r[k]||""));
           if(cpN && v===cpN) return r;
         }
       }
     }
     // fallback ville
-    for(var r2 of REF_ROWS){
-      var keys2=Object.keys(r2);
-      for(var k2 of keys2){
+    for(const r2 of REF_ROWS){
+      const keys2=Object.keys(r2);
+      for(const k2 of keys2){
         if(CITY_KEYS.map(norm).indexOf(norm(k2))>=0){
-          var v2=norm(String(r2[k2]||""));
+          const v2=norm(String(r2[k2]||""));
           if(cityN && v2===cityN) return r2;
         }
       }
@@ -251,17 +338,17 @@ document.addEventListener("DOMContentLoaded", function(){
 
   /* ===== Auto calculs (CP/DPE/Année + réf) ===== */
   function autoFromReferential(){
-    var city=getStr("#city"), cp=getStr("#cp"), surf=getNum("#surf"), rooms=getNum("#rooms"), year=getNum("#year"), dpe=getStr("#dpe");
-    var row=findRefRowFor(city,cp);
+    const city=getStr("#city"), cp=getStr("#cp"), surf=getNum("#surf"), year=getNum("#year"), dpe=getStr("#dpe");
+    const row=findRefRowFor(city,cp);
     if(!row){ append("#debug","[Auto] Réf introuvable pour cette Ville/CP."); return; }
 
-    var tf_m2=pickNumberFromRow(row,COL_HINTS.tf_m2);
-    var teom_m2=pickNumberFromRow(row,COL_HINTS.teom_m2);
-    var teom_an=pickNumberFromRow(row,COL_HINTS.teom_an);
-    var fix_m=pickNumberFromRow(row,COL_HINTS.charges_fixes_m);
-    var gest=pickNumberFromRow(row,COL_HINTS.gestion_pct);
-    var capex=pickNumberFromRow(row,COL_HINTS.capex_pct);
-    var tension=pickNumberFromRow(row,COL_HINTS.tension);
+    const tf_m2=pickNumberFromRow(row,COL_HINTS.tf_m2);
+    const teom_m2=pickNumberFromRow(row,COL_HINTS.teom_m2);
+    const teom_an=pickNumberFromRow(row,COL_HINTS.teom_an);
+    const fix_m=pickNumberFromRow(row,COL_HINTS.charges_fixes_m);
+    const gest=pickNumberFromRow(row,COL_HINTS.gestion_pct);
+    const capex=pickNumberFromRow(row,COL_HINTS.capex_pct);
+    const tension=pickNumberFromRow(row,COL_HINTS.tension);
 
     if(tf_m2!=null && surf>0) $("#tf_annual").value = Math.round(tf_m2*surf);
     if(teom_m2!=null && surf>0) $("#teom_annual").value = Math.round(teom_m2*surf);
@@ -271,7 +358,8 @@ document.addEventListener("DOMContentLoaded", function(){
     $("#mgmt_pct").value = (gest!=null? gest.toFixed(2) : "7.00");
     $("#capex_pct").value = (capex!=null? capex.toFixed(2) : capexPctFromDPEandAge(dpe,year).toFixed(2));
 
-    var occ1="0.90", occ2="1.00";
+    // Occupation à partir de "tension" si dispo
+    let occ1="0.90", occ2="1.00";
     if(tension!=null){
       if(tension>=5){ occ1="1.00"; occ2="1.00"; }
       else if(tension>=3){ occ1="0.90"; occ2="1.00"; }
@@ -281,7 +369,7 @@ document.addEventListener("DOMContentLoaded", function(){
     }
     $("#occ_phase1").value=occ1; $("#occ_phase2").value=occ2;
 
-    var rent = getNum("#rent_total") || (getNum("#rooms")*getNum("#rent_per_room"));
+    const rent = getNum("#rent_total") || (getNum("#rooms")*getNum("#rent_per_room"));
     if(!getNum("#other_annual") && rent){ $("#other_annual").value = Math.round(rent*12*0.05); }
     saveState();
   }
@@ -298,7 +386,7 @@ document.addEventListener("DOMContentLoaded", function(){
     parts = Math.max(1, parts||1);
     const qp = baseImposableAnnuel / parts;  // revenu / part
     let impPart = 0, prev = 0;
-    for(var i=0;i<IR2025_THRESHOLDS.length;i++){
+    for(let i=0;i<IR2025_THRESHOLDS.length;i++){
       const top = IR2025_THRESHOLDS[i].upTo;
       const rate = IR2025_THRESHOLDS[i].rate;
       const width = Math.max(0, Math.min(qp, top) - prev);
@@ -327,7 +415,7 @@ document.addEventListener("DOMContentLoaded", function(){
   function computeResults(){
     const bankAmount=getNum("#bank_amount"), bankRate=getNum("#bank_rate")/100, bankYears=getNum("#bank_years");
     const sasuAmount=getNum("#sasu_amount"), sasuRate=getNum("#sasu_rate")/100, sasuYears=getNum("#sasu_years");
-    const rooms=getNum("#rooms"), rpr=getNum("#rent_per_room"); var rentTotal=getNum("#rent_total"); if(!rentTotal && rooms && rpr){ rentTotal=rooms*rpr; $("#rent_total").value=rentTotal; }
+    const rooms=getNum("#rooms"), rpr=getNum("#rent_per_room"); let rentTotal=getNum("#rent_total"); if(!rentTotal && rooms && rpr){ rentTotal=rooms*rpr; $("#rent_total").value=rentTotal; }
 
     const occ1=parseFloat($("#occ_phase1").value||"1"), occ2=parseFloat($("#occ_phase2").value||"1");
     const fixCosts=getNum("#fix_costs"), tfAnnual=getNum("#tf_annual"), teomAnnual=getNum("#teom_annual"), otherAnnual=getNum("#other_annual");
@@ -377,9 +465,12 @@ document.addEventListener("DOMContentLoaded", function(){
   function renderKPIs(obj){
     const root=$("#kpiList"); root.innerHTML="";
     const money=new Set(KPI_LIST.map(x=>x[0]));
-    for(var i=0;i<KPI_LIST.length;i++){
-      var key=KPI_LIST[i][0], label=KPI_LIST[i][1], v=obj[key], sign=(typeof v==="number" && (key.indexOf("cashflow")===0 || key.indexOf("mensualite")===0 || key.indexOf("coupon")===0 || key.indexOf("charges")===0))?(v>=0?"pos":"neg"):"";
-      var el=document.createElement("div"); el.className="item"; el.innerHTML=`<h3>${label}</h3><div class="val ${sign}">${money.has(key)?fmtEur(v):(typeof v==="number"?v.toLocaleString('fr-FR'):"—")}</div>`;
+    for(let i=0;i<KPI_LIST.length;i++){
+      const key=KPI_LIST[i][0], label=KPI_LIST[i][1], v=obj[key];
+      const sign=(typeof v==="number" && (key.indexOf("cashflow")===0 || key.indexOf("mensualite")===0 || key.indexOf("coupon")===0 || key.indexOf("charges")===0))?(v>=0?"pos":"neg"):"";
+      const el=document.createElement("div");
+      el.className="item";
+      el.innerHTML=`<h3>${label}</h3><div class="val ${sign}">${money.has(key)?fmtEur(v):(typeof v==="number"?v.toLocaleString('fr-FR'):"—")}</div>`;
       root.appendChild(el);
     }
   }
@@ -411,7 +502,7 @@ document.addEventListener("DOMContentLoaded", function(){
         }
       } else {
         // pas d'entête fiable → clés col_*
-        trs.forEach((tr,i)=>{
+        trs.forEach((tr)=>{
           const cells=[].slice.call(tr.querySelectorAll("td,th"));
           if(!cells.length) return;
           const obj={};
@@ -424,8 +515,7 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
   async function fetchAsText(url){
-    const res=await fetch(url,{mode:"cors"});
-    if(!res.ok) throw new Error("HTTP "+res.status);
+    const res=await fetch(url,{mode:"cors"}); if(!res.ok) throw new Error("HTTP "+res.status);
     return await res.text();
   }
 
@@ -447,7 +537,7 @@ document.addEventListener("DOMContentLoaded", function(){
       }
       const added=mergeIntoReferential(rows,"API/HTML"); append("#sources_log",`Fusion: +${added}, total=${REF_ROWS.length}`);
       // cache URL
-      var cache=JSON.parse(localStorage.getItem(SRC_CACHE_KEY)||"[]"); if(cache.indexOf(url)<0){ cache.push(url); localStorage.setItem(SRC_CACHE_KEY, JSON.stringify(cache)); }
+      let cache=JSON.parse(localStorage.getItem(SRC_CACHE_KEY)||"[]"); if(cache.indexOf(url)<0){ cache.push(url); localStorage.setItem(SRC_CACHE_KEY, JSON.stringify(cache)); }
       // recalcul
       autoFromReferential(); const out=computeResults(); renderKPIs(out.res); $("#debug").value=JSON.stringify(out.dbg,null,2);
     }catch(err){ append("#sources_log","❌ "+(err&&err.message?err.message:err)); }
@@ -478,7 +568,7 @@ document.addEventListener("DOMContentLoaded", function(){
   loadState();
   describeRef();
   renderKPIs({});
-  const dbg=$("#debug"); if(dbg) dbg.value="Saisis Ville/CP/Surface puis clique Recalculer. La source HTML est préchargée et parsée.";
+  const dbg=$("#debug"); if(dbg) dbg.value="Saisis Ville/CP/Surface puis clique Recalculer. La source HTML est préchargée et parsée. Les codes COG sont reconnus automatiquement.";
 });
 </script>
 </body>
